@@ -12,7 +12,7 @@ export default observer(function CenterPanel() {
       <main className="flex-1 bg-background flex items-center justify-center">
         <div className="text-center text-text-secondary">
           <p className="text-sm">输入知识点并点击“生成内容”</p>
-          <p className="text-xs mt-1">开始创建你的面试作答卡组</p>
+          <p className="text-xs mt-1">开始创建你的面试作答卡组内容</p>
         </div>
       </main>
     );
@@ -22,8 +22,8 @@ export default observer(function CenterPanel() {
     <main className="flex-1 bg-background overflow-auto">
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-text-secondary">文档编辑 · 共 {draft.cards.length} 页</h2>
-          <div className="text-xs text-text-secondary">固定 4 张卡：定义、回答、追问、易错点</div>
+          <h2 className="text-sm font-medium text-text-secondary">文档编辑 · 共 {draft.cards.length} 个逻辑卡位</h2>
+          <div className="text-xs text-text-secondary">固定 4 个逻辑卡位：定义、回答、追问、易错点</div>
         </div>
         <div className="space-y-4">
           {draft.cards.map((card, index) => (
@@ -56,7 +56,7 @@ function CardEditorPanel({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium px-2 py-1 rounded bg-background text-text-secondary">
-            第 {index + 1} 页
+            卡位 {index + 1}
           </span>
           <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary font-medium">
             {roleLabel}

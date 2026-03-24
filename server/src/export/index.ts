@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { chromium, type Page } from 'playwright';
-import { getJobImagesDir, getPublicImagePath } from '../utils/jobArtifacts.js';
+import { getJobArtifactsDir, getPublicImagePath } from '../utils/jobArtifacts.js';
 
 type ExportPageGlobal = {
   __EXPORT_READY__?: boolean;
@@ -23,7 +23,7 @@ export interface ExportResult {
 
 function getExportFilename(cardIndex: number, typeStr: string): string {
   if (cardIndex === 0 || typeStr === 'cover') {
-    return 'cover.png';
+    return 'Acover.png';
   }
 
   return `bullet${cardIndex}.png`;
@@ -56,10 +56,10 @@ async function checkLayoutOk(page: Page): Promise<boolean> {
   return page.evaluate(() => (globalThis as unknown as ExportPageGlobal).__EXPORT_LAYOUT_OK__ === true);
 }
 
-export async function exportJob(jobId: string, createdAt: string): Promise<ExportResult> {
-  const jobImagesDir = getJobImagesDir(createdAt);
-  fs.rmSync(jobImagesDir, { recursive: true, force: true });
-  fs.mkdirSync(jobImagesDir, { recursive: true });
+export async function exportJob(jobId: string, createdAt: string, topic: string): Promise<ExportResult> {
+  const jobArtifactsDir = getJobArtifactsDir(createdAt, topic);
+  fs.rmSync(jobArtifactsDir, { recursive: true, force: true });
+  fs.mkdirSync(jobArtifactsDir, { recursive: true });
 
   let browser;
   try {
@@ -93,7 +93,7 @@ export async function exportJob(jobId: string, createdAt: string): Promise<Expor
       const card = cards.nth(i);
       const typeStr = (await card.getAttribute('data-type')) ?? 'card';
       const filename = getExportFilename(i, typeStr);
-      const filePath = path.join(jobImagesDir, filename);
+      const filePath = path.join(jobArtifactsDir, filename);
 
       await card.screenshot({ path: filePath, type: 'png' });
 
@@ -102,7 +102,7 @@ export async function exportJob(jobId: string, createdAt: string): Promise<Expor
         throw new Error(`Screenshot file was not written correctly: ${filePath}`);
       }
 
-      imagePaths.push(getPublicImagePath(createdAt, filename));
+      imagePaths.push(getPublicImagePath(createdAt, topic, filename));
     }
 
     if (imagePaths.length !== cardCount) {

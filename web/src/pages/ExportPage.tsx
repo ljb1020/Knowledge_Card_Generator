@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import type { Job } from 'shared';
+import { expandCards } from '../lib';
 import ExportCardView from '../components/ExportCardView';
 
 declare global {
@@ -36,7 +37,7 @@ export default function ExportPage() {
 
     const frameId = requestAnimationFrame(() => {
       const cards = Array.from(document.querySelectorAll<HTMLElement>('.export-card'));
-      const expectedCount = job.documentJson?.cards.length ?? 0;
+      const expectedCount = expandCards(job.documentJson!.cards).length;
       const renderedCount = cards.length;
       const layoutOk =
         renderedCount === expectedCount &&
@@ -59,21 +60,30 @@ export default function ExportPage() {
     );
   }
 
-  const { cards, topic } = job.documentJson;
+  const renderItems = expandCards(job.documentJson.cards);
 
   return (
     <div className="bg-background min-h-screen p-4">
-      <h1 className="text-center text-text-secondary mb-4">导出模式 - {topic}</h1>
+      <h1 className="text-center text-text-secondary mb-4">
+        导出模式 - {job.documentJson.topic}
+      </h1>
       <div className="flex flex-col items-center gap-4">
-        {cards.map((card, index) => (
+        {renderItems.map((item, index) => (
           <div
-            key={card.id}
+            key={item.key}
             className="export-card"
             data-page={index + 1}
-            data-type={card.type}
+            data-type={item.card.type}
             style={{ width: '1080px', flexShrink: '0' }}
           >
-            <ExportCardView card={card} current={index + 1} total={cards.length} />
+            <ExportCardView
+              card={item.card}
+              current={item.current}
+              total={item.total}
+              sectionIndex={item.sectionIndex}
+              bulletsToShow={item.bulletsToShow}
+              bulletOffset={item.bulletOffset}
+            />
           </div>
         ))}
       </div>

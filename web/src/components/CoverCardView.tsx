@@ -1,8 +1,14 @@
 import type { CoverCard } from 'shared';
 
-const FONT_STACK =
+const SYS_FONT =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
-const MONO_STACK = '"SF Mono", "Fira Code", "Cascadia Code", Menlo, monospace';
+const CYBER_MONO =
+  '"JetBrains Mono", "SF Mono", "Fira Code", Menlo, monospace';
+
+const NEON_CYAN = '#00F0FF';
+const TERM_GREEN = '#00FF41';
+const BG = '#030712';
+const GRID_COLOR = 'rgba(0,240,255,0.04)';
 
 const DECK_ITEMS = ['定义与价值', '完整作答', '高频追问', '易错点'];
 
@@ -10,44 +16,119 @@ interface Props {
   card: CoverCard;
   current: number;
   total: number;
+  sectionIndex: number;  // cover 卡始终为 0
 }
 
-export default function CoverCardView({ card, current, total }: Props) {
+/** 四角定位符 */
+function CornerMark({ pos }: { pos: 'tl' | 'tr' | 'bl' | 'br' }) {
+  const SIZE = 30;
+  const OFF = 20;
+  const base: React.CSSProperties = {
+    position: 'absolute',
+    width: SIZE,
+    height: SIZE,
+    borderColor: 'rgba(0,240,255,0.6)',
+    borderStyle: 'solid',
+    borderWidth: 0,
+    pointerEvents: 'none',
+  };
+  if (pos === 'tl') return <div style={{ ...base, top: OFF, left: OFF, borderTopWidth: 2, borderLeftWidth: 2 }} />;
+  if (pos === 'tr') return <div style={{ ...base, top: OFF, right: OFF, borderTopWidth: 2, borderRightWidth: 2 }} />;
+  if (pos === 'bl') return <div style={{ ...base, bottom: OFF, left: OFF, borderBottomWidth: 2, borderLeftWidth: 2 }} />;
+  return <div style={{ ...base, bottom: OFF, right: OFF, borderBottomWidth: 2, borderRightWidth: 2 }} />;
+}
+
+/** 方块进度条 */
+function ProgressSquares({ current, total }: { current: number; total: number }) {
+  return (
+    <div style={{ display: 'flex', gap: '7px' }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            width: '16px',
+            height: '16px',
+            background: i < current ? NEON_CYAN : 'transparent',
+            border: `1px solid ${i < current ? NEON_CYAN : 'rgba(0,240,255,0.22)'}`,
+            boxShadow: i < current ? `0 0 8px rgba(0,240,255,0.7)` : 'none',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function CoverCardView({ card, current, total, sectionIndex }: Props) {
   const subtitleIsLong = card.subtitle.length > 60;
 
   return (
     <div
       className="w-[1080px] h-[1440px] relative overflow-hidden"
       style={{
-        fontFamily: FONT_STACK,
-        background: '#0A0F1C',
+        fontFamily: SYS_FONT,
+        background: BG,
         backgroundImage: [
-          'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)',
-          'linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+          `linear-gradient(${GRID_COLOR} 1px, transparent 1px)`,
+          `linear-gradient(90deg, ${GRID_COLOR} 1px, transparent 1px)`,
         ].join(', '),
         backgroundSize: '48px 48px',
       }}
     >
-      {/* 顶部光边 */}
+      {/* 顶部霓虹光边 */}
       <div
         className="absolute top-0 left-0 right-0 z-20"
         style={{
           height: '2px',
-          background:
-            'linear-gradient(90deg, transparent 0%, rgba(96,165,250,0.55) 30%, rgba(147,197,253,0.95) 50%, rgba(96,165,250,0.55) 70%, transparent 100%)',
+          background: `linear-gradient(90deg, transparent 0%, rgba(0,240,255,0.5) 25%, ${NEON_CYAN} 50%, rgba(0,240,255,0.5) 75%, transparent 100%)`,
+          boxShadow: `0 0 12px rgba(0,240,255,0.5)`,
         }}
       />
 
-      {/* 左上径向光晕 */}
+      {/* 四角定位符 */}
+      <CornerMark pos="tl" />
+      <CornerMark pos="tr" />
+      <CornerMark pos="bl" />
+      <CornerMark pos="br" />
+
+      {/* 右侧竖排数据流 */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 10,
+          top: 160,
+          bottom: 160,
+          width: 18,
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: CYBER_MONO,
+            fontSize: '13px',
+            color: 'rgba(0,240,255,0.22)',
+            letterSpacing: '0.22em',
+            whiteSpace: 'nowrap',
+            transform: 'rotate(90deg)',
+            textTransform: 'uppercase',
+          }}
+        >
+          SYS.READY // 0x00FA · STATUS: NORMAL · DECK_INIT_OK · V2.4.1
+        </div>
+      </div>
+
+      {/* 径向光晕 */}
       <div
         className="absolute pointer-events-none z-0"
         style={{
-          top: -160,
-          left: -160,
-          width: 800,
-          height: 800,
-          background:
-            'radial-gradient(ellipse at center, rgba(59,130,246,0.16) 0%, rgba(37,99,235,0.06) 45%, transparent 70%)',
+          top: -200,
+          left: -200,
+          width: 900,
+          height: 900,
+          background: 'radial-gradient(ellipse at center, rgba(0,240,255,0.07) 0%, rgba(0,240,255,0.02) 45%, transparent 70%)',
           borderRadius: '50%',
         }}
       />
@@ -57,115 +138,144 @@ export default function CoverCardView({ card, current, total }: Props) {
         className="relative z-10 flex flex-col"
         style={{ height: '100%', padding: '88px 72px' }}
       >
-        {/* ── 上半区：flex-1，将标题块居中 ── */}
-        <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-
-          {/* Tag：绝对定位左上角，放大 */}
+        {/* ── 上半区：居中标题块 ── */}
+        <div
+          style={{
+            flex: 1,
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Tag：左上角 */}
           <div
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
-              fontFamily: MONO_STACK,
+              fontFamily: CYBER_MONO,
               fontSize: '60px',
               fontWeight: 800,
-              color: '#60A5FA',
-              letterSpacing: '0.18em',
+              color: NEON_CYAN,
+              letterSpacing: '0.12em',
               textTransform: 'uppercase',
+              textShadow: `0 0 20px rgba(0,240,255,0.5)`,
             }}
           >
             {card.tag}
           </div>
 
-          {/* 标题 + 副标题居中块，paddingTop 避免与 tag 重叠并使视觉偏上 */}
-          <div style={{ paddingTop: '56px' }}>
+          {/* 右上角系统状态 */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              fontFamily: CYBER_MONO,
+              fontSize: '14px',
+              color: 'rgba(0,240,255,0.3)',
+              letterSpacing: '0.14em',
+              textAlign: 'right',
+              lineHeight: 2,
+              textTransform: 'uppercase',
+            }}
+          >
+            <div>SYS.READY</div>
+            <div style={{ color: 'rgba(0,255,65,0.35)' }}>STATUS: OK</div>
+            <div>0x00FA</div>
+          </div>
 
-            {/* 主标题：居中，放大 */}
+          {/* 主标题 + 副标题块 */}
+          <div style={{ paddingTop: '80px' }}>
+            {/* 主标题 */}
             <div
               style={{
                 textAlign: 'center',
-                fontSize: '108px',
-                fontWeight: 800,
-                color: '#F0F6FF',
-                letterSpacing: '-0.03em',
-                lineHeight: 1.06,
-                marginBottom: '28px',
+                fontSize: '112px',
+                fontWeight: 900,
+                color: '#FFFFFF',
+                letterSpacing: '-0.05em',
+                lineHeight: 1.04,
+                marginBottom: '32px',
+                textShadow: `0 0 28px rgba(0,240,255,0.35), 0 0 56px rgba(0,240,255,0.12)`,
               }}
             >
               {card.title}
             </div>
 
-            {/* 对称分隔线（居中） */}
+            {/* 对称光线分隔 */}
             <div
               style={{
-                height: '2px',
-                width: '80px',
-                margin: '0 auto 28px',
-                background: 'linear-gradient(90deg, rgba(59,130,246,0.15), #3B82F6, rgba(59,130,246,0.15))',
-                boxShadow: '0 0 10px rgba(59,130,246,0.5)',
+                height: '1px',
+                margin: '0 auto 32px',
+                width: '120px',
+                background: `linear-gradient(90deg, transparent, ${NEON_CYAN}, transparent)`,
+                boxShadow: `0 0 12px rgba(0,240,255,0.6)`,
               }}
             />
 
-            {/* 核心定义小标签 */}
+            {/* 核心定义标签 */}
             <div
               style={{
-                fontFamily: MONO_STACK,
+                fontFamily: CYBER_MONO,
                 fontSize: '25px',
                 fontWeight: 800,
-                color: '#4A7FA8',
+                color: 'rgba(0,240,255,0.65)',
                 letterSpacing: '0.18em',
                 textTransform: 'uppercase',
-                marginBottom: '14px',
+                marginBottom: '16px',
               }}
             >
-              核心定义
+              // 核心定义
             </div>
 
             {/* 副标题面板 */}
             <div
               style={{
-                borderLeft: '3px solid rgba(59,130,246,0.55)',
-                border: '1px solid rgba(59,130,246,0.12)',
-                borderLeftWidth: '3px',
-                background: 'rgba(59,130,246,0.04)',
-                borderRadius: '0 8px 8px 0',
-                padding: '22px 28px',
+                borderLeft: `4px solid ${NEON_CYAN}`,
+                border: `1px solid rgba(0,240,255,0.14)`,
+                borderLeftWidth: '4px',
+                background: 'rgba(0,240,255,0.03)',
+                borderRadius: '0 4px 4px 0',
+                padding: '24px 30px',
                 fontSize: subtitleIsLong ? '32px' : '35px',
-                color: '#94A3B8',
+                color: '#9ECFDA',
                 lineHeight: 1.72,
+                boxShadow: `-4px 0 18px rgba(0,240,255,0.12)`,
               }}
             >
-              {card.subtitle}
+              {card.subtitle.trim()}
             </div>
           </div>
         </div>
 
-        {/* ── 下半区 Bento ─────────────────── */}
-        <div style={{ display: 'flex', gap: '14px', height: '268px' }}>
+        {/* ── 下半区 Bento ── */}
+        <div style={{ display: 'flex', gap: '12px', height: '268px' }}>
 
           {/* 左：本套卡组导航 */}
           <div
             style={{
               flex: 1,
-              border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: '12px',
-              padding: '24px 28px',
-              background: 'rgba(255,255,255,0.02)',
+              border: `1px solid rgba(0,240,255,0.15)`,
+              borderRadius: '4px',
+              padding: '22px 26px',
+              background: 'rgba(0,240,255,0.02)',
               display: 'flex',
               flexDirection: 'column',
             }}
           >
             <div
               style={{
-                fontFamily: MONO_STACK,
-                fontSize: '13px',
-                color: '#2D3F5A',
-                letterSpacing: '0.18em',
+                fontFamily: CYBER_MONO,
+                fontSize: '14px',
+                color: 'rgba(0,240,255,0.4)',
+                letterSpacing: '0.2em',
                 textTransform: 'uppercase',
-                marginBottom: '22px',
+                marginBottom: '20px',
               }}
             >
-              本套卡组
+              // DECK_STRUCTURE
             </div>
             <div
               style={{
@@ -177,7 +287,7 @@ export default function CoverCardView({ card, current, total }: Props) {
             >
               {DECK_ITEMS.map((label, i) => {
                 const idx = String(i + 1).padStart(2, '0');
-                const isActive = i + 1 === current;
+                const isActive = i === sectionIndex;
                 return (
                   <div
                     key={idx}
@@ -185,11 +295,12 @@ export default function CoverCardView({ card, current, total }: Props) {
                   >
                     <span
                       style={{
-                        fontFamily: MONO_STACK,
+                        fontFamily: CYBER_MONO,
                         fontSize: '20px',
-                        color: isActive ? '#60A5FA' : '#2D3F5A',
-                        fontWeight: isActive ? 600 : 400,
-                        minWidth: '26px',
+                        color: isActive ? NEON_CYAN : 'rgba(0,240,255,0.25)',
+                        fontWeight: isActive ? 700 : 400,
+                        minWidth: '28px',
+                        textShadow: isActive ? `0 0 8px rgba(0,240,255,0.7)` : 'none',
                       }}
                     >
                       {idx}
@@ -197,32 +308,30 @@ export default function CoverCardView({ card, current, total }: Props) {
                     <span
                       style={{
                         width: '1px',
-                        height: '14px',
+                        height: '16px',
                         flexShrink: 0,
-                        background: isActive
-                          ? 'rgba(59,130,246,0.55)'
-                          : 'rgba(255,255,255,0.08)',
+                        background: isActive ? 'rgba(0,240,255,0.6)' : 'rgba(255,255,255,0.07)',
                       }}
                     />
                     <span
                       style={{
                         fontSize: '26px',
-                        color: isActive ? '#E2E8F0' : '#3A4F6A',
+                        color: isActive ? '#E0F4FF' : 'rgba(224,244,255,0.25)',
                         fontWeight: isActive ? 500 : 400,
                       }}
                     >
                       {label}
                     </span>
                     {isActive && (
+                      /* 发光方块（替代圆点） */
                       <span
                         style={{
                           marginLeft: 'auto',
-                          width: '7px',
-                          height: '7px',
-                          borderRadius: '50%',
+                          width: '10px',
+                          height: '10px',
                           flexShrink: 0,
-                          background: '#3B82F6',
-                          boxShadow: '0 0 7px rgba(59,130,246,0.85)',
+                          background: TERM_GREEN,
+                          boxShadow: `0 0 8px rgba(0,255,65,0.85), 0 0 16px rgba(0,255,65,0.4)`,
                         }}
                       />
                     )}
@@ -233,22 +342,16 @@ export default function CoverCardView({ card, current, total }: Props) {
           </div>
 
           {/* 右：两个叠放小面板 */}
-          <div
-            style={{
-              width: '252px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
+          <div style={{ width: '252px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
             {/* 类型面板 */}
             <div
               style={{
                 flex: 1,
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: '12px',
-                padding: '18px 22px',
-                background: 'rgba(255,255,255,0.02)',
+                border: `1px solid rgba(0,240,255,0.15)`,
+                borderRadius: '4px',
+                padding: '16px 20px',
+                background: 'rgba(0,240,255,0.02)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -256,21 +359,22 @@ export default function CoverCardView({ card, current, total }: Props) {
             >
               <div
                 style={{
-                  fontFamily: MONO_STACK,
+                  fontFamily: CYBER_MONO,
                   fontSize: '13px',
-                  color: '#2D3F5A',
-                  letterSpacing: '0.18em',
+                  color: 'rgba(0,240,255,0.35)',
+                  letterSpacing: '0.2em',
                   textTransform: 'uppercase',
                 }}
               >
-                类型
+                // TYPE
               </div>
               <div
                 style={{
                   fontSize: '28px',
-                  color: '#60A5FA',
+                  color: NEON_CYAN,
                   fontWeight: 600,
                   lineHeight: 1.2,
+                  textShadow: `0 0 12px rgba(0,240,255,0.4)`,
                 }}
               >
                 {card.tag}
@@ -281,10 +385,10 @@ export default function CoverCardView({ card, current, total }: Props) {
             <div
               style={{
                 flex: 1,
-                border: '1px solid rgba(255,255,255,0.07)',
-                borderRadius: '12px',
-                padding: '18px 22px',
-                background: 'rgba(255,255,255,0.02)',
+                border: `1px solid rgba(0,240,255,0.15)`,
+                borderRadius: '4px',
+                padding: '16px 20px',
+                background: 'rgba(0,240,255,0.02)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -292,46 +396,46 @@ export default function CoverCardView({ card, current, total }: Props) {
             >
               <div
                 style={{
-                  fontFamily: MONO_STACK,
+                  fontFamily: CYBER_MONO,
                   fontSize: '13px',
-                  color: '#2D3F5A',
-                  letterSpacing: '0.18em',
+                  color: 'rgba(0,240,255,0.35)',
+                  letterSpacing: '0.2em',
                   textTransform: 'uppercase',
                 }}
               >
-                进度
+                // PROGRESS
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-                <span
-                  style={{
-                    fontFamily: MONO_STACK,
-                    fontSize: '54px',
-                    fontWeight: 700,
-                    color: '#E2E8F0',
-                    lineHeight: 1,
-                  }}
-                >
-                  {String(current).padStart(2, '0')}
-                </span>
-                <span
-                  style={{
-                    fontFamily: MONO_STACK,
-                    fontSize: '26px',
-                    color: '#2D3F5A',
-                  }}
-                >
-                  /{String(total).padStart(2, '0')}
-                </span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', marginBottom: '10px' }}>
+                  <span
+                    style={{
+                      fontFamily: CYBER_MONO,
+                      fontSize: '54px',
+                      fontWeight: 700,
+                      color: '#E0F4FF',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {String(current).padStart(2, '0')}
+                  </span>
+                  <span style={{ fontFamily: CYBER_MONO, fontSize: '26px', color: 'rgba(0,240,255,0.3)' }}>
+                    /{String(total).padStart(2, '0')}
+                  </span>
+                </div>
+                <ProgressSquares current={current} total={total} />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 底部微边 */}
+      {/* 底部光边 */}
       <div
         className="absolute bottom-0 left-0 right-0"
-        style={{ height: '1px', background: 'rgba(59,130,246,0.1)' }}
+        style={{
+          height: '1px',
+          background: `linear-gradient(90deg, transparent, rgba(0,240,255,0.3), transparent)`,
+        }}
       />
     </div>
   );

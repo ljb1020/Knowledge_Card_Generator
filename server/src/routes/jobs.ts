@@ -18,6 +18,8 @@ import {
   extractArtifactsDirFromImagePath,
   getJobArtifactsDir,
   getLegacyJobArtifactsDir,
+  getLegacyTimestampImagesDir,
+  getLegacyTimestampJobArtifactsDir,
 } from '../utils/jobArtifacts.js';
 
 const router = Router();
@@ -64,10 +66,12 @@ async function runGenerationJob(db: Database.Database, jobId: string, topic: str
   }
 }
 
-function deleteJobArtifacts(job: Pick<Job, 'id' | 'createdAt' | 'imagePaths'>): void {
+function deleteJobArtifacts(job: Pick<Job, 'id' | 'topic' | 'createdAt' | 'imagePaths'>): void {
   const artifactDirs = new Set<string>([
     getLegacyJobArtifactsDir(job.id),
-    getJobArtifactsDir(job.createdAt),
+    getJobArtifactsDir(job.createdAt, job.topic),
+    getLegacyTimestampJobArtifactsDir(job.createdAt),
+    getLegacyTimestampImagesDir(job.createdAt),
   ]);
 
   for (const imagePath of job.imagePaths) {
@@ -219,7 +223,7 @@ router.post('/:id/export', (req, res) => {
 
     const jobId = id;
     setTimeout(async () => {
-      const result = await exportJob(jobId, job.createdAt);
+      const result = await exportJob(jobId, job.createdAt, job.topic);
       if (result.success && result.imagePaths.length > 0) {
         updateJobStatus(res.locals.db, jobId, 'done', result.imagePaths, null, null);
         return;

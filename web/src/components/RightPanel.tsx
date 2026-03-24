@@ -1,5 +1,6 @@
 import { observer } from 'mobx-react-lite';
 import { appStore } from '../stores';
+import { expandCards } from '../lib';
 import CardPreview from './CardPreview';
 
 export default observer(function RightPanel() {
@@ -23,6 +24,8 @@ export default observer(function RightPanel() {
     );
   }
 
+  const renderItems = expandCards(draft.cards);
+
   return (
     <section
       className="flex-1 border-l border-border overflow-auto p-6"
@@ -32,8 +35,16 @@ export default observer(function RightPanel() {
         <h2 className="text-sm font-medium" style={{ color: '#334155' }}>实时预览</h2>
       </div>
       <div className="flex flex-col items-center gap-4">
-        {draft.cards.map((card, index) => (
-          <CardPreview key={card.id} card={card} current={index + 1} total={draft.cards.length} />
+        {renderItems.map((item) => (
+          <CardPreview
+            key={item.key}
+            card={item.card}
+            current={item.current}
+            total={item.total}
+            sectionIndex={item.sectionIndex}
+            bulletsToShow={item.bulletsToShow}
+            bulletOffset={item.bulletOffset}
+          />
         ))}
       </div>
     </section>

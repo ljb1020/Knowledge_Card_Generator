@@ -325,7 +325,7 @@ export async function generateDocumentForTopicWithOptions(
     const parsedDraft = stage1Validation.parsedDraft;
     const collectedWarnings = [...stage1Validation.warnings];
 
-    await emitProgress('validating', 'Stage 2 / 正在装配 4 张面试作答卡');
+    await emitProgress('validating', 'Stage 2 / 正在装配面试作答卡组（固定 4 个逻辑卡位）');
     stage2Raw = await createChatCompletion(
       [
         {
@@ -338,7 +338,7 @@ export async function generateDocumentForTopicWithOptions(
           content: buildStage2Prompt(topic, parsedDraft),
         },
       ],
-      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 2600 }
+      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 4000 }
     );
 
     const stage2Validation = parseAndValidateDocument(topic, parsedDraft, stage2Raw);
@@ -400,7 +400,7 @@ export async function generateDocumentForTopicWithOptions(
           ),
         },
       ],
-      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 2600 }
+      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 4000 }
     );
 
     const repairedValidation = parseAndValidateDocument(topic, parsedDraft, repairedStage2Raw);

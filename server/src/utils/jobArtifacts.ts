@@ -2,12 +2,27 @@ import path from 'path';
 import { resolveProjectPath } from './loadEnv.js';
 
 const STORAGE_DIR = resolveProjectPath(process.env.APP_STORAGE_DIR ?? './storage');
+const MAX_TOPIC_SEGMENT_LENGTH = 40;
 
 function pad(value: number, width = 2): string {
   return String(value).padStart(width, '0');
 }
 
-export function formatJobFolderName(createdAt: string): string {
+function truncateCodePoints(value: string, maxLength: number): string {
+  return Array.from(value).slice(0, maxLength).join('');
+}
+
+export function sanitizeTopicSegment(topic: string): string {
+  const normalized = topic
+    .trim()
+    .replace(/[^\p{Script=Han}A-Za-z0-9]+/gu, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return truncateCodePoints(normalized || 'untitled', MAX_TOPIC_SEGMENT_LENGTH);
+}
+
+export function formatLegacyTimestampFolderName(createdAt: string): string {
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) {
     throw new Error(`Invalid job createdAt timestamp: ${createdAt}`);
@@ -24,16 +39,24 @@ export function formatJobFolderName(createdAt: string): string {
   return `${year}_${month}_${day}_${hours}_${minutes}_${seconds}_${milliseconds}`;
 }
 
-export function getJobArtifactsDir(createdAt: string): string {
-  return path.join(STORAGE_DIR, 'jobs', formatJobFolderName(createdAt));
+export function formatJobFolderName(createdAt: string, topic: string): string {
+  return `${formatLegacyTimestampFolderName(createdAt)}_${sanitizeTopicSegment(topic)}`;
 }
 
-export function getJobImagesDir(createdAt: string): string {
-  return path.join(getJobArtifactsDir(createdAt), 'images');
+export function getJobArtifactsDir(createdAt: string, topic: string): string {
+  return path.join(STORAGE_DIR, 'jobs', formatJobFolderName(createdAt, topic));
 }
 
-export function getPublicImagePath(createdAt: string, filename: string): string {
-  return `storage/jobs/${formatJobFolderName(createdAt)}/images/${filename}`;
+export function getLegacyTimestampJobArtifactsDir(createdAt: string): string {
+  return path.join(STORAGE_DIR, 'jobs', formatLegacyTimestampFolderName(createdAt));
+}
+
+export function getLegacyTimestampImagesDir(createdAt: string): string {
+  return path.join(getLegacyTimestampJobArtifactsDir(createdAt), 'images');
+}
+
+export function getPublicImagePath(createdAt: string, topic: string, filename: string): string {
+  return `storage/jobs/${formatJobFolderName(createdAt, topic)}/${filename}`;
 }
 
 export function getLegacyJobArtifactsDir(jobId: string): string {

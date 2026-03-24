@@ -6,7 +6,7 @@ const CARD_STRUCTURE_RULES = [
   `cards 数量必须等于 ${DEFAULT_GENERATED_CARD_COUNT}。`,
   '第 1 张卡必须是 cover，第 2 到第 4 张卡必须是 bullet。',
   `cover.tag 必须等于 "${VALIDATION_RULES.cover.tag}"。`,
-  '固定卡组顺序是：cover + 完整面试回答 + 高频追问 + 易错点。',
+  '固定逻辑卡位顺序是：cover + 完整面试回答 + 高频追问 + 易错点。',
 ];
 
 const CARD_FIELD_RULES = [
@@ -26,7 +26,7 @@ const CARD_FIELD_RULES = [
 const CARD_CONTENT_RULES = [
   '所有用户可见内容必须使用简体中文。',
   '不要输出 Markdown、HTML、emoji、代码块。',
-  '不要把这组卡做成摘要卡，要做成面试作答卡。',
+  '不要把这组内容做成摘要卡，要做成面试作答卡组；文档层固定 4 个逻辑卡位。',
   '所有卡片都必须严格围绕目标知识点，cover 的标题或副标题必须直接点名这个知识点。',
   'cover 只负责“一句话定义 + 它解决什么问题”。',
   'bullet-1 只负责“标准面试回答”，读者按顺序读完 bullets 后，应能拼出一段完整的 1 到 2 分钟回答。',
@@ -123,7 +123,7 @@ function buildSharedCardPrompt(topic: string, parsedDraft: ParsedTutorialDraft):
 export function buildStage2Prompt(topic: string, parsedDraft: ParsedTutorialDraft): string {
   return [
     '你是一名前端面试内容编辑。',
-    `请把下面的结构化底稿装配成合法的 ${DEFAULT_GENERATED_CARD_COUNT} 张 CardDocument JSON。`,
+    `请把下面的结构化底稿装配成合法的 ${DEFAULT_GENERATED_CARD_COUNT} 个逻辑卡位的 CardDocument JSON。`,
     '只输出 JSON 对象本身，不要附加解释。',
     '',
     ...buildSharedCardPrompt(topic, parsedDraft),

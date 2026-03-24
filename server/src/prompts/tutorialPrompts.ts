@@ -2,7 +2,7 @@ import { TUTORIAL_SECTIONS } from '../services/tutorialDraft.js';
 
 const TUTORIAL_STYLE_RULES = [
   '所有内容必须使用简体中文。',
-  '目标不是知识摘要，而是为 4 张“面试作答卡组”提供可直接装配的底稿。',
+  '目标不是知识摘要，而是为固定 4 个逻辑卡位的“面试作答卡组”提供可直接装配的底稿。',
   '必须严格围绕用户给定的那个知识点展开，不能偷换成相关概念、上位概念或相邻概念。',
   '标题必须出现且仅出现一次，顺序固定，标题文字完全一致。',
   '不要输出 JSON、Markdown 代码块、HTML。',
@@ -44,7 +44,7 @@ export function buildStage1Prompt(topic: string): string {
   return [
     '你是一名前端面试教练。',
     '请围绕给定知识点，直接输出一份“面试作答底稿”。',
-    '这份底稿后续会被提炼成 4 张卡：cover、标准回答、追问、易错点。',
+    '这份底稿后续会被提炼成 4 个逻辑卡位：cover、标准回答、追问、易错点。',
     '不要提问，不要索取更多上下文，不要解释你要做什么。',
     '',
     ...buildTopicLockRules(topic),

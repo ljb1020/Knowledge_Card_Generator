@@ -5,9 +5,12 @@ interface Props {
   card: Card;
   current: number;
   total: number;
+  sectionIndex: number;
+  bulletsToShow: string[];
+  bulletOffset: number;
 }
 
-export default function CardPreview({ card, current, total }: Props) {
+export default function CardPreview({ card, current, total, sectionIndex, bulletsToShow, bulletOffset }: Props) {
   const scale = 0.35;
   const width = Math.round(1080 * scale);
   const height = Math.round(1440 * scale);
@@ -33,7 +36,14 @@ export default function CardPreview({ card, current, total }: Props) {
         }}
         className="pointer-events-none"
       >
-        <ExportCardView card={card} current={current} total={total} />
+        <ExportCardView
+          card={card}
+          current={current}
+          total={total}
+          sectionIndex={sectionIndex}
+          bulletsToShow={bulletsToShow}
+          bulletOffset={bulletOffset}
+        />
       </div>
     </div>
   );
