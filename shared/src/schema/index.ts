@@ -42,6 +42,7 @@ export const JobStatusSchema = z.enum([
   'ready_with_warnings',
   'exporting',
   'done',
+  'published',
   'failed',
 ]);
 

@@ -9,6 +9,7 @@ function getJobStatusLabel(status: string): string {
   if (status === 'ready_with_warnings') return '可导出（有提醒）';
   if (status === 'exporting') return '导出中...';
   if (status === 'done') return '已完成';
+  if (status === 'published') return '已发布';
   return '失败';
 }
 
@@ -74,6 +75,23 @@ export default observer(function LeftPanel() {
     await appStore.startExport();
   }
 
+  async function handlePublishToXhs() {
+    const ok = await appStore.publishToXhs();
+    if (ok) {
+      alert('已发布到小红书');
+    }
+  }
+
+  async function handleCheckXhsAuth() {
+    try {
+      const res = await fetch('/api/xhs/check-auth');
+      const data = await res.json();
+      alert(data.success ? `✅ 登录态有效：${data.message}` : `❌ 需要重新登录：${data.message}`);
+    } catch {
+      alert('❌ 检测失败');
+    }
+  }
+
   return (
     <aside className="w-[320px] min-w-[320px] bg-panel border-r border-border flex flex-col h-full">
       <div className="p-6 border-b border-border">
@@ -96,6 +114,13 @@ export default observer(function LeftPanel() {
             }`}
           >
             {appStore.isGenerating ? '生成中...' : '生成内容'}
+          </button>
+          <button
+            onClick={handleCheckXhsAuth}
+            className="px-3 py-2 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-background transition-colors"
+            title="测试小红书登录态是否有效"
+          >
+            测试登录
           </button>
         </div>
       </div>
@@ -219,6 +244,19 @@ export default observer(function LeftPanel() {
           >
             {appStore.isExporting ? '导出中...' : '导出'}
           </button>
+          {appStore.canPublishToXhs && (
+            <button
+              onClick={handlePublishToXhs}
+              disabled={appStore.isPublishing}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                appStore.isPublishing
+                  ? 'bg-border text-text-secondary cursor-not-allowed'
+                  : 'bg-red-500 text-white hover:bg-red-600'
+              }`}
+            >
+              {appStore.isPublishing ? '发布中...' : '小红书'}
+            </button>
+          )}
         </div>
         {appStore.errorMessage && <div className="mt-2 text-xs text-red-500">{appStore.errorMessage}</div>}
       </div>

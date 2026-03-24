@@ -8,6 +8,7 @@ class AppStore {
   isDirty = false;
   isGenerating = false;
   isExporting = false;
+  isPublishing = false;
   historyJobs: Job[] = [];
   errorMessage: string | null = null;
   isSaving = false;
@@ -115,6 +116,31 @@ class AppStore {
     } catch (err) {
       this.setError(err instanceof Error ? err.message : '删除失败');
       return false;
+    }
+  }
+
+  async publishToXhs(): Promise<boolean> {
+    if (!this.currentJobId) return false;
+    this.isPublishing = true;
+    this.clearError();
+
+    try {
+      const res = await fetch(`/api/jobs/${this.currentJobId}/publish-draft`, {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? '发布失败');
+      }
+
+      return true;
+    } catch (err) {
+      this.setError(err instanceof Error ? err.message : '发布到小红书失败');
+      return false;
+    } finally {
+      this.isPublishing = false;
     }
   }
 
@@ -279,7 +305,15 @@ class AppStore {
     return (
       this.currentJob?.status === 'ready' ||
       this.currentJob?.status === 'ready_with_warnings' ||
-      this.currentJob?.status === 'done'
+      this.currentJob?.status === 'done' ||
+      this.currentJob?.status === 'published'
+    );
+  }
+
+  get canPublishToXhs(): boolean {
+    return (
+      this.currentJob?.status === 'done' &&
+      (this.currentJob?.imagePaths?.length ?? 0) > 0
     );
   }
 }

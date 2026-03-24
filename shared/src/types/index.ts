@@ -30,6 +30,7 @@ export type JobStatus =
   | 'ready_with_warnings'
   | 'exporting'
   | 'done'
+  | 'published'
   | 'failed';
 
 export interface Job {

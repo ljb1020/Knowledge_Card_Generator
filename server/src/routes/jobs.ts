@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import type Database from 'better-sqlite3';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -14,6 +15,10 @@ import {
 } from '../db/jobs.js';
 import { exportJob } from '../export/index.js';
 import { generateDocumentForTopicWithOptions } from '../services/generateDocument.js';
+import { ensureXhsAuth } from '../publish/xhsAuth.js';
+import { publishDraft } from '../publish/xhsPublisher.js';
+import { formatXhsTitle, formatXhsContent } from '../publish/contentFormatter.js';
+import { resolveProjectPath } from '../utils/loadEnv.js';
 import {
   extractArtifactsDirFromImagePath,
   getJobArtifactsDir,
@@ -242,6 +247,57 @@ router.post('/:id/export', (req, res) => {
   } catch (err) {
     console.error('POST /api/jobs/:id/export error:', err);
     res.status(500).json({ error: 'Failed to start export' });
+  }
+});
+
+router.post('/:id/publish-draft', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const job = getJobById(res.locals.db, id);
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
+    if (job.status !== 'done') {
+      res.status(400).json({ error: '请先导出 PNG 后再发布到小红书' });
+      return;
+    }
+
+    if (!job.imagePaths || job.imagePaths.length === 0) {
+      res.status(400).json({ error: '没有可用的导出图片' });
+      return;
+    }
+
+    if (!job.documentJson) {
+      res.status(400).json({ error: '没有可用的文档数据' });
+      return;
+    }
+
+    // 解析 imagePaths 为本地绝对路径
+    const storageDir = resolveProjectPath(process.env.APP_STORAGE_DIR ?? './storage');
+    const localPaths = job.imagePaths.map((p) => {
+      // imagePaths 格式: "storage/jobs/<folder>/<file>.png"
+      const relative = p.replace(/^storage\//, '');
+      return path.join(storageDir, relative);
+    });
+
+    // 格式化标题和正文
+    const title = formatXhsTitle(job.topic);
+    const content = formatXhsContent(job.documentJson);
+
+    // 执行发布（登录检查也在 publishDraft 内部处理）
+    const result = await publishDraft(localPaths, title, content);
+
+    if (result.success) {
+      updateJobStatus(res.locals.db, id, 'published');
+      res.json({ success: true, message: result.message });
+    } else {
+      res.status(500).json({ error: result.message });
+    }
+  } catch (err) {
+    console.error('POST /api/jobs/:id/publish-draft error:', err);
+    res.status(500).json({ error: '发布到小红书失败' });
   }
 });
 

@@ -22,7 +22,7 @@ export const CardDocumentSchema = z.object({
         .refine((cards) => cards[0]?.type === 'cover', { message: '第 1 张卡必须是 cover' })
         .refine((cards) => cards.slice(1).every((card) => card.type === 'bullet'), { message: '第 2 到第 4 张卡必须都是 bullet' }),
 });
-export const JobStatusSchema = z.enum(['generating', 'validating', 'ready', 'ready_with_warnings', 'exporting', 'done', 'failed']);
+export const JobStatusSchema = z.enum(['generating', 'validating', 'ready', 'ready_with_warnings', 'exporting', 'done', 'published', 'failed']);
 export const GenerateRequestSchema = z.object({
     topic: z.string().min(1).max(100),
 });

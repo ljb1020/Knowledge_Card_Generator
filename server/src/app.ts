@@ -30,6 +30,17 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+// 小红书登录态检测
+app.get('/api/xhs/check-auth', async (_req, res) => {
+  try {
+    const { ensureXhsAuth } = await import('./publish/xhsAuth.js');
+    const result = await ensureXhsAuth();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err instanceof Error ? err.message : '检测失败' });
+  }
+});
+
 // Initialize seed data
 initSeedData(db);
 
