@@ -12,27 +12,32 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  /* 更强烈的渐变背景，以便凸显毛玻璃效果 */
+  letter-spacing: -0.012em; /* Apple macOS 级别紧凑字间距 */
+  
+  /* macOS Light Mode 级别高级抽象虚化渐变背景 */
   background: 
-    radial-gradient(circle at 15% 50%, rgba(200, 180, 255, 0.4), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(130, 200, 255, 0.4), transparent 25%),
-    linear-gradient(135deg, #e0e7ff 0%, #ede9fe 50%, #f3e8ff 100%);
+    radial-gradient(at 0% 0%, rgba(240, 245, 255, 1) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(235, 230, 255, 1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(225, 240, 255, 1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(250, 240, 250, 1) 0px, transparent 50%),
+    #F4F5F7; /* 极其浅而柔和的底层 */
   background-attachment: fixed;
-  color: #0F172A;
+  color: #1D1D1F; /* Apple 字色，不用纯黑，也不是普通深灰 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
 }
 
-/* 毛玻璃面板 - 增强版 */
+/* 终极 Apple 级毛玻璃面板 (Safari Sidebar / 控制中心规格) */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow:
-    0 4px 24px -2px rgba(0, 0, 0, 0.05),
-    inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(48px) saturate(180%);
+  -webkit-backdrop-filter: blur(48px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.05),
+    0 2px 8px rgba(0, 0, 0, 0.02),
+    inset 0 1px 1px rgba(255, 255, 255, 0.6); /* 苹果式高光倒角边缘 */
 }
 
 /* 状态标签胶囊 */

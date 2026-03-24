@@ -60,8 +60,8 @@ function CardEditorPanel({
   const isCover = card.type === 'cover';
 
   return (
-    <div className="bg-white/60 rounded-xl border border-white/40 p-4 shadow-sm backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-white/60 rounded-2xl border border-white p-5 shadow-[0_4px_16px_rgba(0,0,0,0.04)] backdrop-blur-md">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100/80 text-slate-500">
             卡位 {index + 1}
@@ -94,7 +94,7 @@ function CoverEditor({ card, index }: { card: CoverCard; index: number }) {
           maxLength={28}
           rows={1}
           onChange={(e) => appStore.updateCardField(index, { title: e.target.value })}
-          className="w-full px-3 py-2.5 border border-slate-200/60 rounded-xl text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 transition-all"
+          className="w-full px-3 py-2 border border-black/5 rounded-lg text-sm bg-black/[0.02] focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-[#007AFF]/30 focus:border-[#007AFF] transition-all font-medium text-slate-800"
         />
         <div className="text-[11px] text-slate-400 text-right mt-1">{card.title.length}/28</div>
       </div>
@@ -105,7 +105,7 @@ function CoverEditor({ card, index }: { card: CoverCard; index: number }) {
           maxLength={90}
           rows={1}
           onChange={(e) => appStore.updateCardField(index, { subtitle: e.target.value })}
-          className="w-full px-3 py-2.5 border border-slate-200/60 rounded-xl text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 transition-all"
+          className="w-full px-3 py-2 border border-black/5 rounded-lg text-sm bg-black/[0.02] focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-[#007AFF]/30 focus:border-[#007AFF] transition-all leading-relaxed text-slate-700"
         />
         <div className="text-[11px] text-slate-400 text-right mt-1">{card.subtitle.length}/90</div>
       </div>
@@ -123,7 +123,7 @@ function BulletEditor({ card, index }: { card: BulletCard; index: number }) {
           maxLength={28}
           rows={1}
           onChange={(e) => appStore.updateCardField(index, { title: e.target.value })}
-          className="w-full px-3 py-2.5 border border-slate-200/60 rounded-xl text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 transition-all"
+          className="w-full px-3 py-2 border border-black/5 rounded-lg text-sm bg-black/[0.02] focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-[#007AFF]/30 focus:border-[#007AFF] transition-all font-medium text-slate-800"
         />
         <div className="text-[11px] text-slate-400 text-right mt-1">{card.title.length}/28</div>
       </div>
@@ -137,7 +137,7 @@ function BulletEditor({ card, index }: { card: BulletCard; index: number }) {
                 maxLength={220}
                 rows={1}
                 onChange={(e) => appStore.updateBullet(index, bulletIndex, e.target.value)}
-                className="flex-1 px-3 py-2.5 border border-slate-200/60 rounded-xl text-sm bg-white/80 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 transition-all"
+                className="flex-1 px-3 py-2 border border-black/5 rounded-lg text-sm bg-black/[0.02] focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-[#007AFF]/30 focus:border-[#007AFF] transition-all leading-relaxed text-slate-700"
               />
               {card.bullets.length > 3 && (
                 <button
@@ -157,7 +157,7 @@ function BulletEditor({ card, index }: { card: BulletCard; index: number }) {
           {card.bullets.length < 6 && (
             <button
               onClick={() => appStore.updateCardField(index, { bullets: [...card.bullets, '新要点'] })}
-              className="text-xs text-indigo-500 hover:text-indigo-600 py-1 font-medium"
+              className="text-xs text-[#007AFF] hover:text-[#006ee6] py-1 font-medium bg-transparent hover:bg-black/5 px-2 rounded-md transition-all inline-block"
             >
               + 添加要点
             </button>

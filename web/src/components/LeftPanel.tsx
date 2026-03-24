@@ -112,17 +112,17 @@ export default observer(function LeftPanel() {
           <button
             onClick={handleGenerate}
             disabled={appStore.isGenerating}
-            className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               appStore.isGenerating
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+                ? 'bg-black/5 text-slate-400 cursor-not-allowed'
+                : 'bg-[#007AFF] text-white hover:bg-[#006ee6] shadow-sm active:scale-[0.98]'
             }`}
           >
             {appStore.isGenerating ? '生成中...' : '生成内容'}
           </button>
           <button
             onClick={handleCheckXhsAuth}
-            className="px-3 py-2.5 rounded-xl text-xs font-medium border border-slate-200/60 text-slate-500 hover:bg-white/60 transition-all"
+            className="px-3 py-2 rounded-lg text-xs font-medium border border-black/5 text-slate-500 bg-white/50 hover:bg-white hover:shadow-sm transition-all active:scale-[0.98]"
             title="测试小红书登录态是否有效"
           >
             测试登录
@@ -151,10 +151,10 @@ export default observer(function LeftPanel() {
                   key={job.id}
                   onClick={() => handleSelectJob(job.id)}
                   title={progressPreview || issuePreview || undefined}
-                  className={`p-3 rounded-xl cursor-pointer transition-all ${
+                  className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${
                     job.id === appStore.currentJobId
                       ? 'bg-indigo-50/80 border border-indigo-200/60 shadow-sm'
-                      : 'hover:bg-indigo-50/40 hover:border-indigo-100/50 border border-transparent'
+                      : 'hover:bg-indigo-100/40 hover:border-indigo-200/50 hover:shadow-sm hover:-translate-y-[1px] border border-transparent'
                   }`}
                 >
                   <div className="flex items-start gap-2">
@@ -233,10 +233,10 @@ export default observer(function LeftPanel() {
           <button
             onClick={handleSave}
             disabled={!appStore.isDirty || appStore.isSaving}
-            className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               appStore.isDirty && !appStore.isSaving
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
-                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                ? 'bg-[#007AFF] text-white hover:bg-[#006ee6] shadow-sm active:scale-[0.98]'
+                : 'bg-black/5 text-slate-400 cursor-not-allowed'
             }`}
           >
             {appStore.isSaving ? '保存中...' : '保存'}
@@ -244,10 +244,10 @@ export default observer(function LeftPanel() {
           <button
             onClick={handleExport}
             disabled={!appStore.canExport || appStore.isExporting || appStore.isGenerating}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               appStore.canExport && !appStore.isExporting && !appStore.isGenerating
-                ? 'bg-slate-800 text-white hover:bg-slate-900 shadow-sm'
-                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                ? 'bg-slate-800 text-white hover:bg-black shadow-sm active:scale-[0.98]'
+                : 'bg-black/5 text-slate-400 cursor-not-allowed'
             }`}
           >
             {appStore.isExporting ? '导出中...' : '导出'}
