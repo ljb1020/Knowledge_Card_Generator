@@ -5,7 +5,7 @@ import RightPanel from '../components/RightPanel';
 
 export default observer(function MainPage() {
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen p-3 gap-3">
       <LeftPanel />
       <CenterPanel />
       <RightPanel />

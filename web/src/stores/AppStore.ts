@@ -26,6 +26,11 @@ class AppStore {
       if (!res.ok) throw new Error('Failed to load jobs');
       const data = await res.json();
       this.historyJobs = data.jobs as Job[];
+      
+      // 添加自动选中第一个的逻辑（例如页面初次加载时）
+      if (!this.currentJobId && this.historyJobs.length > 0) {
+        this.loadJob(this.historyJobs[0].id);
+      }
     } catch {
       this.setError('加载历史记录失败');
     }
@@ -112,6 +117,12 @@ class AppStore {
       }
 
       this.historyJobs = this.historyJobs.filter((job) => job.id !== id);
+      
+      // 如果删除了当前项，则自动选中新的第一项
+      if (!this.currentJobId && this.historyJobs.length > 0) {
+        this.loadJob(this.historyJobs[0].id);
+      }
+      
       return true;
     } catch (err) {
       this.setError(err instanceof Error ? err.message : '删除失败');
@@ -141,6 +152,11 @@ class AppStore {
       return false;
     } finally {
       this.isPublishing = false;
+      // 发布成功后重新加载 job 和历史记录，确保状态更新到 published
+      if (this.currentJobId) {
+        await this.loadJob(this.currentJobId);
+      }
+      await this.loadHistoryJobs();
     }
   }
 
