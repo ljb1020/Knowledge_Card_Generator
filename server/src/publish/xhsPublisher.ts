@@ -50,7 +50,7 @@ export async function publishDraft(
   try {
     browser = await chromium.launch({
       headless: false,
-      args: ['--start-maximized'],
+      args: ['--start-maximized', '--no-proxy-server'],
     });
 
     // 如果有已保存的 cookie 就加载，没有就空白启动
