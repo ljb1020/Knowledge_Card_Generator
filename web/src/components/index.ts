@@ -5,4 +5,3 @@ export { default as CardPreview } from './CardPreview';
 export { default as ExportCardView } from './ExportCardView';
 export { default as CoverCardView } from './CoverCardView';
 export { default as BulletCardView } from './BulletCardView';
-export { default as SummaryCardView } from './SummaryCardView';

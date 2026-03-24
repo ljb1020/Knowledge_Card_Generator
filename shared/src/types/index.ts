@@ -1,4 +1,4 @@
-export type CardType = 'cover' | 'bullet' | 'summary';
+export type CardType = 'cover' | 'bullet';
 
 export interface CoverCard {
   id: string;
@@ -15,15 +15,7 @@ export interface BulletCard {
   bullets: string[];
 }
 
-export interface SummaryCard {
-  id: string;
-  type: 'summary';
-  title: string;
-  summary: string;
-  cta: string;
-}
-
-export type Card = CoverCard | BulletCard | SummaryCard;
+export type Card = CoverCard | BulletCard;
 
 export interface CardDocument {
   topic: string;
@@ -35,6 +27,7 @@ export type JobStatus =
   | 'generating'
   | 'validating'
   | 'ready'
+  | 'ready_with_warnings'
   | 'exporting'
   | 'done'
   | 'failed';
@@ -43,6 +36,7 @@ export interface Job {
   id: string;
   topic: string;
   status: JobStatus;
+  progressMessage: string | null;
   stage1Draft: string | null;
   stage2Raw: string | null;
   documentJson: CardDocument | null;

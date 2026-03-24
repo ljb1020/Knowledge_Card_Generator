@@ -1,5 +1,4 @@
 import type { CardDocument } from 'shared';
-import { generateJobId } from 'shared';
 
 export function generateMockDocument(topic: string): CardDocument {
   return {
@@ -9,36 +8,39 @@ export function generateMockDocument(topic: string): CardDocument {
       {
         id: `card_${Date.now()}_1`,
         type: 'cover',
-        title: `深入理解${topic}`,
-        subtitle: `${topic}的核心概念与实践应用`,
-        tag: '前端知识点',
+        title: topic,
+        subtitle: `${topic}是什么，它解决什么问题，为什么这是前端面试里的高频题。`,
+        tag: '前端面试卡',
       },
       {
         id: `card_${Date.now()}_2`,
         type: 'bullet',
-        title: `什么是${topic}`,
+        title: '完整面试回答',
         bullets: [
-          `${topic}是前端开发中的重要概念`,
-          `理解其原理能帮助写出更好的代码`,
-          `在实际项目中有广泛的应用场景`,
+          `${topic}先说本质定义，再说它解决的问题。`,
+          '接着补机制、代码体现或业务场景中的至少一个论据。',
+          '最后补一句边界和注意点，让回答更像真实面试表达。',
         ],
       },
       {
         id: `card_${Date.now()}_3`,
         type: 'bullet',
-        title: `核心机制`,
+        title: '高频追问',
         bullets: [
-          `掌握核心机制是进阶的关键`,
-          `结合实际场景理解更深刻`,
-          `多实践多总结才能融会贯通`,
+          `面试官为什么会继续追问 ${topic} 的原理？`,
+          `这题和相邻概念有什么区别？`,
+          '落到真实代码里应该怎么解释才不空泛？',
         ],
       },
       {
         id: `card_${Date.now()}_4`,
-        type: 'summary',
-        title: '总结',
-        summary: `通过本篇内容的学习，相信你对${topic}有了更深入的理解。持续学习，不断实践，才能真正掌握这项技能。`,
-        cta: '学以致用，共同进步',
+        type: 'bullet',
+        title: '易错点',
+        bullets: [
+          '不要只背定义而说不出工程价值。',
+          '不要把相邻概念混成同一题。',
+          '不要把绝对化结论当成面试标准答案。',
+        ],
       },
     ],
   };

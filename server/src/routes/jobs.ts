@@ -1,8 +1,8 @@
 import fs from 'fs';
-import path from 'path';
+import type Database from 'better-sqlite3';
 import { Router } from 'express';
 import { z } from 'zod';
-import { CardDocumentSchema, GenerateRequestSchema, generateJobId } from 'shared';
+import { CardDocumentSchema, GenerateRequestSchema, generateJobId, type Job, type JobStatus } from 'shared';
 import {
   createJob,
   deleteJob,
@@ -13,15 +13,73 @@ import {
   updateJobStatus,
 } from '../db/jobs.js';
 import { exportJob } from '../export/index.js';
-import { generateDocumentForTopic } from '../services/generateDocument.js';
-import { resolveProjectPath } from '../utils/loadEnv.js';
+import { generateDocumentForTopicWithOptions } from '../services/generateDocument.js';
+import {
+  extractArtifactsDirFromImagePath,
+  getJobArtifactsDir,
+  getLegacyJobArtifactsDir,
+} from '../utils/jobArtifacts.js';
 
 const router = Router();
-const STORAGE_DIR = resolveProjectPath(process.env.APP_STORAGE_DIR ?? './storage');
 
-function deleteJobArtifacts(jobId: string): void {
-  const jobDir = path.join(STORAGE_DIR, 'jobs', jobId);
-  fs.rmSync(jobDir, { recursive: true, force: true });
+async function runGenerationJob(db: Database.Database, jobId: string, topic: string): Promise<void> {
+  try {
+    const generationResult = await generateDocumentForTopicWithOptions(topic, {
+      onProgress: async ({ status, message }) => {
+        updateJobGeneration(db, jobId, {
+          status,
+          progressMessage: message,
+          errorMessage: null,
+        });
+      },
+    });
+
+    if (!generationResult.success) {
+      updateJobGeneration(db, jobId, {
+        status: 'failed',
+        progressMessage: null,
+        stage1Draft: generationResult.stage1Draft,
+        stage2Raw: generationResult.stage2Raw,
+        documentJson: null,
+        errorMessage: generationResult.errorMessage,
+      });
+      return;
+    }
+
+    const finalStatus = generationResult.finalStatus as JobStatus;
+    updateJobGeneration(db, jobId, {
+      status: finalStatus,
+      progressMessage: null,
+      stage1Draft: generationResult.stage1Draft,
+      stage2Raw: generationResult.stage2Raw,
+      documentJson: generationResult.documentJson,
+      errorMessage: generationResult.warningMessage,
+    });
+  } catch (err) {
+    updateJobGeneration(db, jobId, {
+      status: 'failed',
+      progressMessage: null,
+      errorMessage: err instanceof Error ? err.message : 'Failed to generate job',
+    });
+  }
+}
+
+function deleteJobArtifacts(job: Pick<Job, 'id' | 'createdAt' | 'imagePaths'>): void {
+  const artifactDirs = new Set<string>([
+    getLegacyJobArtifactsDir(job.id),
+    getJobArtifactsDir(job.createdAt),
+  ]);
+
+  for (const imagePath of job.imagePaths) {
+    const imageDir = extractArtifactsDirFromImagePath(imagePath);
+    if (imageDir) {
+      artifactDirs.add(imageDir);
+    }
+  }
+
+  for (const artifactDir of artifactDirs) {
+    fs.rmSync(artifactDir, { recursive: true, force: true });
+  }
 }
 
 router.get('/', (_req, res) => {
@@ -59,7 +117,7 @@ router.delete('/:id', (req, res) => {
       return;
     }
 
-    deleteJobArtifacts(id);
+    deleteJobArtifacts(existing);
 
     const deleted = deleteJob(res.locals.db, id);
     if (!deleted) {
@@ -117,40 +175,19 @@ router.post('/generate', async (req, res) => {
     const topic = parsed.data.topic.trim();
     const jobId = generateJobId();
 
-    createJob(res.locals.db, {
+    const job = createJob(res.locals.db, {
       id: jobId,
       topic,
       status: 'generating',
+      progressMessage: '任务已创建，等待进入 Stage 1',
       imagePaths: [],
     });
 
-    const generationResult = await generateDocumentForTopic(topic);
-
-    updateJobGeneration(res.locals.db, jobId, {
-      status: generationResult.success ? 'validating' : 'failed',
-      stage1Draft: generationResult.stage1Draft,
-      stage2Raw: generationResult.stage2Raw,
-      documentJson: null,
-      errorMessage: generationResult.success ? null : generationResult.errorMessage,
-    });
-
-    if (!generationResult.success) {
-      res.status(500).json({ error: generationResult.errorMessage });
-      return;
-    }
-
-    const job = updateJobGeneration(res.locals.db, jobId, {
-      status: 'ready',
-      stage1Draft: generationResult.stage1Draft,
-      stage2Raw: generationResult.stage2Raw,
-      documentJson: generationResult.documentJson,
-      errorMessage: null,
-    });
-
-    if (!job) {
-      res.status(500).json({ error: 'Failed to persist generated job' });
-      return;
-    }
+    setTimeout(() => {
+      runGenerationJob(res.locals.db, jobId, topic).catch((err) => {
+        console.error(`Background generation failed for ${jobId}:`, err);
+      });
+    }, 0);
 
     res.json({ job });
   } catch (err) {
@@ -168,12 +205,13 @@ router.post('/:id/export', (req, res) => {
       return;
     }
 
-    if (job.status !== 'ready' && job.status !== 'done') {
+    const exportableStatuses = new Set<JobStatus>(['ready', 'ready_with_warnings', 'done']);
+    if (!exportableStatuses.has(job.status as JobStatus)) {
       res.status(400).json({ error: 'Job is not in a exportable state' });
       return;
     }
 
-    const updated = updateJobStatus(res.locals.db, id, 'exporting');
+    const updated = updateJobStatus(res.locals.db, id, 'exporting', undefined, null, '导出阶段 / 正在生成 PNG 图片');
     if (!updated) {
       res.status(500).json({ error: 'Failed to start export' });
       return;
@@ -181,9 +219,9 @@ router.post('/:id/export', (req, res) => {
 
     const jobId = id;
     setTimeout(async () => {
-      const result = await exportJob(jobId);
+      const result = await exportJob(jobId, job.createdAt);
       if (result.success && result.imagePaths.length > 0) {
-        updateJobStatus(res.locals.db, jobId, 'done', result.imagePaths);
+        updateJobStatus(res.locals.db, jobId, 'done', result.imagePaths, null, null);
         return;
       }
 

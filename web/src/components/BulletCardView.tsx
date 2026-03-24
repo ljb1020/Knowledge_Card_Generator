@@ -7,6 +7,10 @@ interface Props {
 }
 
 export default function BulletCardView({ card, current, total }: Props) {
+  const totalTextLength = card.bullets.reduce((sum, bullet) => sum + bullet.length, 0);
+  const textSizeClass = totalTextLength > 220 ? 'text-[28px]' : 'text-[32px]';
+  const itemSpacingClass = totalTextLength > 220 ? 'mb-4' : 'mb-5';
+
   return (
     <div
       className="w-[1080px] h-[1440px] bg-[#F8FAFC] px-[72px] py-[88px] flex flex-col relative"
@@ -24,8 +28,8 @@ export default function BulletCardView({ card, current, total }: Props) {
         {card.bullets.map((b, i) => (
           <div
             key={i}
-            className="text-[34px] text-[#0F172A] leading-[1.7] mb-6 pl-6 border-l-4 border-[#2563EB]"
-            style={{ lineHeight: 1.7 }}
+            className={`${textSizeClass} text-[#0F172A] leading-[1.55] ${itemSpacingClass} pl-5 border-l-4 border-[#2563EB]`}
+            style={{ lineHeight: 1.55 }}
           >
             {b}
           </div>

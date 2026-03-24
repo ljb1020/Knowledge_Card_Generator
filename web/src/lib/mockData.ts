@@ -1,4 +1,4 @@
-import type { Job, CardDocument } from 'shared';
+import type { CardDocument, Job } from 'shared';
 
 export const MOCK_DOCUMENT: CardDocument = {
   topic: '闭包',
@@ -7,46 +7,40 @@ export const MOCK_DOCUMENT: CardDocument = {
     {
       id: 'card-1',
       type: 'cover',
-      title: '深入理解闭包',
-      subtitle: 'JavaScript 中最强大又最容易被误解的概念',
-      tag: '前端知识点',
+      title: '闭包',
+      subtitle: '函数能访问定义时所在词法作用域中的变量，解决状态保留和延迟访问问题。',
+      tag: '前端面试卡',
     },
     {
       id: 'card-2',
       type: 'bullet',
-      title: '什么是闭包',
+      title: '完整面试回答',
       bullets: [
-        '闭包是指函数能够访问其词法作用域外部的变量',
-        '当内部函数引用了外部函数的变量，就形成了闭包',
-        '即使外部函数已经执行完毕，这些变量依然被保留',
+        '闭包本质上是函数和它创建时词法作用域的组合，不是单独某个语法点。',
+        '它的核心价值是让函数执行结束后，内部逻辑仍然可以访问之前定义的外部变量。',
+        '前端里常见在事件回调、函数工厂、缓存封装和 React Hooks 等场景，用来保存状态或隔离数据。',
+        '回答这题时最好补一句边界：闭包不是坏事，但不必要的长期引用会带来额外内存压力。',
       ],
     },
     {
       id: 'card-3',
       type: 'bullet',
-      title: '闭包的典型应用',
+      title: '高频追问',
       bullets: [
-        '数据私有化：利用闭包创建私有变量',
-        '函数工厂：返回携带不同参数的函数',
-        '事件处理：在循环中正确绑定索引值',
+        '为什么外层函数执行结束后变量还不会消失？答题方向：说明词法环境仍然被内部函数引用。',
+        '闭包和作用域链是什么关系？答题方向：闭包依赖词法作用域，但不等于作用域链本身。',
+        'React Hooks 里哪些问题和闭包有关？答题方向：从事件回调、useEffect 和旧状态捕获切入。',
       ],
     },
     {
       id: 'card-4',
       type: 'bullet',
-      title: '常见误区',
+      title: '易错点',
       bullets: [
-        '在循环中创建闭包导致变量共享问题',
-        '过度使用闭包造成内存泄漏',
-        '混淆作用域链与闭包的概念',
+        '误区一：只要定义了内层函数就一定有闭包，关键还是看是否真正引用并保留了外层变量。',
+        '误区二：闭包一定会导致内存泄漏，真正的问题是无用引用没有及时释放。',
+        '误区三：把闭包和 this 绑定混为一谈，闭包解决变量访问，this 解决调用时上下文。',
       ],
-    },
-    {
-      id: 'card-5',
-      type: 'summary',
-      title: '总结',
-      summary: '闭包是 JavaScript 的核心概念，理解它的工作原理对于编写高质量代码至关重要。掌握闭包，让你的代码更加优雅和强大。',
-      cta: '持续学习，共同进步',
     },
   ],
 };
@@ -55,6 +49,7 @@ export const MOCK_JOB: Job = {
   id: 'job_mock_001',
   topic: '闭包',
   status: 'ready',
+  progressMessage: null,
   stage1Draft: null,
   stage2Raw: null,
   documentJson: MOCK_DOCUMENT,

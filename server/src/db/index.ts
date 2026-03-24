@@ -25,6 +25,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     topic TEXT NOT NULL,
     status TEXT NOT NULL,
+    progress_message TEXT,
     stage1_draft TEXT,
     stage2_raw TEXT,
     document_json TEXT,
@@ -34,5 +35,10 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 `);
+
+const jobColumns = db.prepare(`PRAGMA table_info(jobs)`).all() as Array<{ name: string }>;
+if (!jobColumns.some((column) => column.name === 'progress_message')) {
+  db.exec(`ALTER TABLE jobs ADD COLUMN progress_message TEXT`);
+}
 
 export default db;

@@ -1,149 +1,292 @@
-# 前端知识卡片生成器 系统设计定稿
+# 前端面试作答卡组生成器 系统设计定稿（v4）
 
 ## 1. 产品定义
 
-这是一个**本地可视化知识卡片生成器**。
+这是一个本地可视化的前端面试知识点卡片生成器。
 
-用户输入一个前端知识点，例如“闭包”“虚拟 DOM”“浏览器缓存”，系统完成以下流程：
+它的目标不再是把知识点压缩成“摘要卡片”，而是围绕一个前端知识点，直接生成一组适合面试复习和临场作答的 **4 张面试作答卡**。
 
-1. 调用 LLM 生成一份知识讲解草稿
-2. 再调用 LLM 把草稿转成结构化分页卡片
-3. 在 React 页面中可视化预览
-4. 用户可以做轻量编辑
-5. 用户点击导出
-6. 后端用 Playwright 打开纯导出页，逐张截图
-7. 输出多张 `1080 × 1440` 的 PNG 图片
+用户刷完这 4 张卡后，应该完成：
 
----
-
-## 2. 设计目标
-
-这个系统第一版要解决的问题是：
-
-- 输入一个知识点，自动生成适合社交媒体发布的多张纯文字知识卡片
-- 内容结构标准化，视觉模板统一
-- 支持人工微调
-- 支持本地持久化和历史查看
-- 支持一键导出图片
+- 知道这个知识点是什么
+- 知道它为什么重要、为什么会被问
+- 拿到一段可以直接复述的标准面试回答
+- 预判面试官最可能继续追问什么
+- 避开最常见、最容易丢分的理解错误
 
 ---
 
-## 3. 非目标
+## 2. 最终卡组定义
 
-第一版不做以下内容：
+系统默认输出固定 4 张卡，顺序固定：
 
-- 多模板系统
-- 多风格切换
-- 自动发布到社交媒体
-- 批量主题队列
-- 云端协作
-- 登录/权限系统
-- 自定义尺寸
-- 自定义字体上传
-- 代码块卡片
-- 图标/插画/图片混排
-- Electron 桌面端封装
+1. `cover`
+   定义 + 解决的问题
+2. `bullet-1`
+   完整面试回答
+3. `bullet-2`
+   面试官最可能追问的 3-5 个问题
+4. `bullet-3`
+   这道题的易错点
 
----
-
-## 4. 技术栈
-
-## 前端
-
-- Vite
-- React
-- TypeScript
-- Tailwind CSS
-- React Router
-- MobX
-- mobx-react-lite
-- 原生 `fetch`
-
-## 后端
-
-- Node.js
-- Express
-- Zod
-- Playwright
-- SQLite
-- better-sqlite3
-
-## 共享层
-
-- TypeScript 类型
-- Zod schema
-- Prompt 模板
-- 通用工具函数
+这 4 张卡的职责必须清晰，不允许再退化为泛泛总结。
 
 ---
 
-## 5. 项目目录结构
+## 3. 内容生成总流程
 
-```text
-project/
-  web/
-    src/
-      app/
-      components/
-      pages/
-      routes/
-      stores/
-      lib/
-      styles/
-      types/
-    index.html
-    vite.config.ts
-    tailwind.config.ts
+从用户输入 topic 到进入待导出状态，链路如下：
 
-  server/
-    src/
-      app.ts
-      routes/
-      services/
-      llm/
-      db/
-      export/
-      prompts/
-      utils/
-    tsconfig.json
+1. 前端提交知识点到 `POST /api/jobs/generate`
+2. 服务端创建 job，状态记为 `generating`
+3. Stage 1 生成“面试作答底稿”
+4. Stage 1 校验并解析为结构化字段
+5. Stage 2 把结构化底稿装配成 4 张卡的 `CardDocument`
+6. Stage 2 做 schema 校验和内容覆盖校验
+7. 成功后落库 `stage1Draft`、`stage2Raw`、`documentJson`
+8. job 状态改为 `ready`
+9. 前端加载 `documentJson`，进入可编辑、可导出状态
 
-  shared/
-    src/
-      types/
-      schema/
-      constants/
-      utils/
+---
 
-  storage/
-    app.db
-    jobs/
-      <jobId>/
-        images/
-          01-cover.png
-          02-bullet.png
-          03-summary.png
+## 4. 阶段 1：面试作答底稿
 
-  package.json
+### 4.1 目标
+
+Stage 1 不再生成“教程型长稿”或“知识说明稿”，而是生成一份专门服务于 4 张面试卡的 **面试作答底稿**。
+
+### 4.2 固定标题
+
+Stage 1 必须输出以下固定标题，顺序固定，标题完全一致：
+
+- 一句话定义：
+- 它解决什么问题：
+- 标准面试回答：
+- 回答里的关键论据：
+- 面试官最可能追问的 3-5 个问题：
+- 这道题的易错点：
+
+### 4.3 输出要求
+
+- 所有内容必须使用简体中文
+- 标题必须出现且仅出现一次
+- 不能输出 JSON、Markdown 代码块、HTML
+- 必须严格围绕用户输入的唯一知识点
+- “标准面试回答”以 1 到 2 分钟口述长度为目标
+- “标准面试回答”整体信息量目标约 300 到 600 字
+- “回答里的关键论据”至少覆盖机制 / 代码 / 场景中的 1 类
+- “面试官最可能追问的 3-5 个问题”必须稳定给出 3 到 5 个问题，整体信息量目标约 200 到 400 字
+- “这道题的易错点”必须稳定给出 3 到 5 个易错点，整体信息量目标约 200 到 400 字
+
+### 4.4 Stage 1 解析结构
+
+服务端解析后得到：
+
+```ts
+type ParsedTutorialDraft = {
+  definition: string;
+  problem: string;
+  standardAnswer: string;
+  answerEvidence: string;
+  followUpQuestions: string;
+  pitfalls: string;
+};
 ```
 
-说明：
+### 4.5 Stage 1 校验
 
-- `web`：React 可视化界面
-- `server`：Express API、LLM 调用、导出逻辑
-- `shared`：前后端共用类型和 schema
-- `storage/app.db`：SQLite 数据库文件
-- `storage/jobs/<jobId>/images`：导出图片目录
+至少包括：
+
+- 标题完整
+- 标题顺序正确
+- 主题锁定正确，不能偷换题
+- 标准面试回答非空，且达到足够的信息密度
+- 标准面试回答不能只是关键词堆砌，要有表达顺序
+- 回答里的关键论据至少覆盖机制 / 代码 / 场景中的 1 类
+- 追问数量必须在 3 到 5 之间
+- 易错点数量必须在 3 到 5 之间
 
 ---
 
-## 6. 路由设计
+## 5. 阶段 2：CardDocument 装配
 
-## 前端页面路由
+### 5.1 目标
 
-- `/`：主操作台
-- `/export/:jobId`：纯导出页
+Stage 2 不负责重新发散生成一篇内容，也不负责“补课”。
 
-## 后端 API 路由
+Stage 2 的职责是把 Stage 1 的结构化底稿，稳定装配成固定 4 张卡的 `CardDocument JSON`。
+
+### 5.2 映射关系
+
+- `cover`
+  优先来自 `definition + problem`
+- `bullet-1`
+  优先来自 `standardAnswer`，必要时吸收 `answerEvidence` 补强
+- `bullet-2`
+  优先来自 `followUpQuestions`
+- `bullet-3`
+  优先来自 `pitfalls`
+
+### 5.3 输出结构
+
+```json
+{
+  "topic": "闭包",
+  "styleVersion": "frontend-card-v1",
+  "cards": [
+    {
+      "id": "cover-1",
+      "type": "cover",
+      "title": "闭包",
+      "subtitle": "……",
+      "tag": "前端面试卡"
+    },
+    {
+      "id": "bullet-1",
+      "type": "bullet",
+      "title": "完整面试回答",
+      "bullets": ["……", "……", "……"]
+    },
+    {
+      "id": "bullet-2",
+      "type": "bullet",
+      "title": "高频追问",
+      "bullets": ["……", "……", "……"]
+    },
+    {
+      "id": "bullet-3",
+      "type": "bullet",
+      "title": "易错点",
+      "bullets": ["……", "……", "……"]
+    }
+  ]
+}
+```
+
+---
+
+## 6. CardDocument 约束
+
+### 6.1 卡片数量
+
+- 固定为 4 张
+- 第 1 张必须是 `cover`
+- 第 2 到第 4 张必须都是 `bullet`
+
+### 6.2 文本长度
+
+当前默认长度规则：
+
+- `cover.title <= 28`
+- `cover.subtitle <= 90`
+- `bullet.title <= 28`
+- 每张 `bullet` 卡 `3~6` 条 bullets
+- 每条 bullet `<= 220`
+
+### 6.3 内容约束
+
+- 所有用户可见内容必须使用简体中文
+- 不允许 HTML、Markdown、emoji、代码块
+- `cover` 必须直接点明当前知识点
+- `bullet-1` 必须像一段能说出口的标准回答
+- `bullet-1` 总字数控制在 `300~600`
+- `bullet-2` 必须体现真实追问，而不是随意列关键词
+- `bullet-2` 总字数控制在 `200~400`
+- `bullet-3` 必须体现易错点，而不是普通知识点补充
+- `bullet-3` 总字数控制在 `200~400`
+
+---
+
+## 7. Stage 2 校验
+
+Stage 2 至少包含三层校验：
+
+### 7.1 Schema 校验
+
+- JSON 结构合法
+- 字段类型合法
+- 卡片数量和顺序合法
+- 字段长度合法
+
+### 7.2 文本安全校验
+
+- 去除非法 HTML
+- 去除代码块
+- 去除异常标记内容
+
+### 7.3 内容覆盖校验
+
+必须保证：
+
+- `cover` 覆盖“定义 + 问题”
+- `bullet-1` 覆盖 Stage 1 的“标准面试回答”素材，并统一输出为“完整面试回答”
+- `bullet-2` 覆盖“追问”
+- `bullet-3` 覆盖“易错点”
+
+如果任一职责缺失，则判定 Stage 2 失败并进入 retry / repair。
+
+### 7.4 分层校验策略
+
+当前校验不是单纯的“一个字不对就失败”，而是分成三层：
+
+- 硬校验
+  结构错误、主题漂移、卡位职责缺失、JSON 不合法等，直接失败
+- 软校验
+  长度偏离理想范围、条数略多或略少、表达结构不够清晰等，记录为 warning
+- 最终状态
+  - 完全通过：`ready`
+  - 可用但有提醒：`ready_with_warnings`
+  - 不可用：`failed`
+
+---
+
+## 8. Prompt 设计
+
+需要保留并维护以下 prompt：
+
+- Stage 1 prompt
+- Stage 1 retry prompt
+- Stage 2 prompt
+- Stage 2 retry prompt
+- repair prompt
+
+关键原则：
+
+- retry 不能只写“请修复”
+- repair 不能只写“请修复”
+- retry / repair 必须完整复用结构规则、长度规则、内容覆盖规则
+- Stage 2 / retry / repair 必须共享同一份 JSON 骨架模板
+
+---
+
+## 9. 前端编辑与导出
+
+### 9.1 编辑器
+
+编辑器默认围绕固定 4 张卡展开：
+
+- 第 1 页：定义与价值
+- 第 2 页：标准回答
+- 第 3 页：高频追问
+- 第 4 页：易错点
+
+当前产品不再鼓励自由增删卡位，而是优先保证这 4 张卡的稳定结构。
+
+### 9.2 导出
+
+导出主链路保持不变：
+
+- `POST /api/jobs/:id/export`
+- Playwright 打开 `/#/export/:jobId`
+- 等待卡片渲染完成
+- 对每张 `.export-card` 截图
+- 输出 PNG 到 `storage/jobs/<jobId>/images`
+
+---
+
+## 10. API
+
+当前保留的接口：
 
 - `POST /api/jobs/generate`
 - `GET /api/jobs`
@@ -151,849 +294,60 @@ project/
 - `PUT /api/jobs/:id/document`
 - `POST /api/jobs/:id/export`
 
----
+其中：
 
-## 7. 页面结构
-
-主页面 `/` 使用三栏布局。
-
-## 左栏：输入与操作区
-
-固定内容：
-
-- 知识点输入框
-- 生成内容按钮
-- 重新生成按钮
-- 导出图片按钮
-- 当前 Job 状态
-- 最近历史 Job 列表
-
-规则：
-
-- 没有当前 document 时，导出图片按钮禁用
-- 当前有未保存修改时，显示未保存提示
-- 点击历史 Job，会加载该 Job 的 document 到编辑区和预览区
-
-## 中栏：结构化编辑区
-
-展示当前 document 的卡片列表，每张卡片一个编辑面板。
-
-每张卡片面板允许：
-
-- 编辑标题
-- 编辑副标题
-- 编辑总结内容
-- 编辑 CTA
-- 编辑 bullet 文本
-- 中间 bullet 卡片可上移/下移
-- 中间 bullet 卡片可删除
-- 可新增 bullet 卡片
-
-限制：
-
-- cover 和 summary 不允许删除
-- 不允许修改卡片类型
-- 不允许新增第二张 cover
-- 不允许新增第二张 summary
-
-## 右栏：实时预览区
-
-显示当前 document 的最终视觉效果预览，纵向排列。
-
-要求：
-
-- 预览必须与导出页复用同一套卡片组件和样式
-- 不允许存在两套独立视觉逻辑
+- `generate` 负责生成 4 张面试作答卡
+- `document` 负责保存编辑后的 `CardDocument`
+- `export` 负责把当前 `CardDocument` 导出为图片
+- 当生成结果可用但存在软性偏差时，job 状态会是 `ready_with_warnings`
+- `errorMessage` 字段会复用来承载失败原因或 warning 原因，文案需要具体到阶段和卡位
 
 ---
 
-## 8. 编辑规则
+## 11. 环境变量
 
-document 的结构规则固定如下：
+当前支持：
 
-- 总页数必须在 `4 ~ 8`
-- 第 1 页必须是 `cover`
-- 最后 1 页必须是 `summary`
-- 中间页只能是 `bullet`
+- `LLM_BASE_URL`
+- `LLM_API_KEY`
+- `LLM_STAGE1_MODEL`
+- `LLM_STAGE2_MODEL`
+- `SERVER_PORT`
+- `WEB_PORT`
+- `APP_STORAGE_DIR`
 
-用户编辑权限如下：
-
-## 允许
-
-- 改所有卡片的文字内容
-- 调整中间 `bullet` 卡片顺序
-- 删除中间 `bullet` 卡片
-- 在最后一张 `summary` 前新增 `bullet` 卡片
-
-## 不允许
-
-- 修改卡片类型
-- 删除 `cover`
-- 删除 `summary`
-- 把 `cover` 移到中间
-- 把 `summary` 移到中间
-- 总页数低于 4 或高于 8
+不做多模型管理后台，不做在线 prompt 管理器，保持最小可用实现。
 
 ---
 
-## 9. 卡片类型
+## 12. 成功标准
 
-第一版只允许三种卡片类型。
+这个版本的成功标准不是“生成一组看起来像知识卡的东西”，而是：
 
-## 9.1 `cover`
-
-字段：
-
-- `id`
-- `type`
-- `title`
-- `subtitle`
-- `tag`
-
-用途：封面页
-
-## 9.2 `bullet`
-
-字段：
-
-- `id`
-- `type`
-- `title`
-- `bullets`
-
-用途：正文知识点页
-
-## 9.3 `summary`
-
-字段：
-
-- `id`
-- `type`
-- `title`
-- `summary`
-- `cta`
-
-用途：总结/收尾页
+1. 用户输入一个前端知识点
+2. 系统稳定生成 4 张固定顺序的面试作答卡
+3. 第 2 张卡能直接支撑 1 到 2 分钟的标准回答
+4. 第 3 张卡能稳定给出 3 到 5 个高频追问
+5. 第 4 张卡能稳定给出 3 到 5 个高频易错点
+6. 前端可编辑、可保存、可导出
 
 ---
 
-## 10. TypeScript 数据结构
+## 13. 当前取舍
 
-```ts
-export type CardType = "cover" | "bullet" | "summary";
+### 做了的
 
-export interface CoverCard {
-	id: string;
-	type: "cover";
-	title: string;
-	subtitle: string;
-	tag: string;
-}
+- 从 7 张速通卡切到 4 张面试作答卡
+- Stage 1 改为面试作答底稿
+- Stage 2 改为固定 4 张卡装配
+- 校验逻辑改为围绕“回答 / 追问 / 易错点”
+- 前端编辑器改为固定 4 张卡的编辑体验
 
-export interface BulletCard {
-	id: string;
-	type: "bullet";
-	title: string;
-	bullets: string[];
-}
+### 暂不做
 
-export interface SummaryCard {
-	id: string;
-	type: "summary";
-	title: string;
-	summary: string;
-	cta: string;
-}
+- 多套卡组模板切换
+- 用户自定义 Stage 1 标题
+- 复杂的质量评分系统
+- 在线 prompt 配置后台
 
-export type Card = CoverCard | BulletCard | SummaryCard;
-
-export interface CardDocument {
-	topic: string;
-	styleVersion: "frontend-card-v1";
-	cards: Card[];
-}
-
-export type JobStatus =
-	| "generating"
-	| "validating"
-	| "ready"
-	| "exporting"
-	| "done"
-	| "failed";
-
-export interface Job {
-	id: string;
-	topic: string;
-	status: JobStatus;
-	stage1Draft: string | null;
-	stage2Raw: string | null;
-	documentJson: CardDocument | null;
-	imagePaths: string[];
-	errorMessage: string | null;
-	createdAt: string;
-	updatedAt: string;
-}
-```
-
----
-
-## 11. SQLite 设计
-
-数据库只建一张业务表：`jobs`
-
-```sql
-CREATE TABLE jobs (
-  id TEXT PRIMARY KEY,
-  topic TEXT NOT NULL,
-  status TEXT NOT NULL,
-  stage1_draft TEXT,
-  stage2_raw TEXT,
-  document_json TEXT,
-  image_paths_json TEXT NOT NULL DEFAULT '[]',
-  error_message TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-```
-
-规则：
-
-- `document_json` 存完整 `CardDocument`
-- `image_paths_json` 存字符串数组 JSON
-- 不建 `cards` 子表
-- 不建 `export_tasks` 表
-- 导出状态直接写回 `jobs.status`
-
----
-
-## 12. 环境变量
-
-后端读取以下环境变量：
-
-```env
-LLM_BASE_URL=
-LLM_API_KEY=
-LLM_MODEL=
-SERVER_PORT=3001
-WEB_PORT=5173
-APP_STORAGE_DIR=./storage
-```
-
-说明：
-
-- `LLM_BASE_URL`：OpenAI 兼容接口基地址
-- `LLM_API_KEY`：模型 API Key
-- `LLM_MODEL`：模型名
-- `SERVER_PORT`：后端端口，默认 `3001`
-- `WEB_PORT`：前端端口，默认 `5173`
-- `APP_STORAGE_DIR`：存储目录，默认 `./storage`
-
----
-
-## 13. 内容生成流程
-
-生成流程是**同步接口**。
-
-接口：`POST /api/jobs/generate`
-
-请求：
-
-```json
-{
-	"topic": "什么是闭包"
-}
-```
-
-后端同步执行以下步骤：
-
-### 步骤 1
-
-创建 job 记录，`status = generating`
-
-### 步骤 2
-
-调用 LLM，生成阶段 1 草稿
-
-### 步骤 3
-
-调用 LLM，基于阶段 1 草稿生成阶段 2 `CardDocument JSON`
-
-### 步骤 4
-
-进入 `validating`
-
-### 步骤 5
-
-校验 document 结构和文本规则
-
-### 步骤 6
-
-如果校验失败，执行一次自动修正
-
-### 步骤 7
-
-修正成功则 `status = ready`，返回完整 job
-修正失败则 `status = failed`，返回错误信息
-
-### 响应
-
-同步返回最终 job 数据，不做前端轮询生成状态。
-
----
-
-## 14. 两阶段 Prompt 责任
-
-## 阶段 1：知识讲解草稿
-
-输入：`topic`
-
-输出：普通文本草稿，必须包含以下逻辑块：
-
-1. 这个知识点是什么
-2. 为什么重要
-3. 核心机制或关键点
-4. 常见误区
-5. 一句总结
-
-阶段 1 输出不是最终展示内容，只作为阶段 2 输入。
-
-## 阶段 2：卡片化
-
-输入：
-
-- `topic`
-- 阶段 1 草稿
-- 固定卡片规则
-
-输出要求：
-
-- 只输出 JSON
-- 不允许 Markdown 代码块
-- 不允许解释文字
-- 必须符合 `CardDocument` 结构
-
----
-
-## 15. 卡片内容规则
-
-所有生成和编辑后的 document 必须满足以下规则：
-
-## 页数
-
-- 最少 4 页
-- 最多 8 页
-
-## cover
-
-- `title`：最多 24 个汉字
-- `subtitle`：最多 40 个汉字
-- `tag`：固定填 `"前端知识点"`
-
-## bullet
-
-- `title`：最多 22 个汉字
-- `bullets.length`：2 ~ 4 条
-- 每条 bullet：最多 30 个汉字
-
-## summary
-
-- `title`：最多 22 个汉字
-- `summary`：最多 80 个汉字
-- `cta`：最多 24 个汉字
-
-## 其他
-
-- 不允许代码块
-- 不允许 HTML
-- 不允许 emoji
-- 不允许列表嵌套
-- 一张 bullet 页只讲一个核心点
-
----
-
-## 16. 自动修正策略
-
-自动修正只做一次。
-
-触发条件包括：
-
-- 页数不在 `4 ~ 8`
-- 第一页不是 `cover`
-- 最后一页不是 `summary`
-- 中间页存在非 `bullet`
-- 文本长度超限
-- bullet 数量超限
-- JSON 结构不合法
-
-修正方式：
-
-- 重新调用阶段 2 的修正版 prompt
-- 输入原 topic、阶段 1 草稿、原始不合格 JSON、错误原因
-- 要求模型严格按规则重写
-
-如果修正后仍不合格：
-
-- `status = failed`
-- 保存 `stage1_draft`
-- 保存 `stage2_raw`
-- 不保存 `document_json`
-
----
-
-## 17. 视觉模板
-
-第一版只做一套浅色模板，样式固定，不做主题切换。
-
-## 导出尺寸
-
-- 宽：`1080px`
-- 高：`1440px`
-
-## 视觉风格
-
-- 背景色：`#F8FAFC`
-- 主文字色：`#0F172A`
-- 次级文字色：`#475569`
-- 强调色：`#2563EB`
-
-## 字体
-
-只允许系统字体栈，不引入外部字体文件：
-
-```css
-font-family:
-	-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-	"Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-```
-
-## 内边距
-
-- 上：`88px`
-- 左右：`72px`
-- 下：`72px`
-
-## 封面页
-
-- title：`76px`，`font-weight: 800`
-- subtitle：`32px`
-- tag：`24px`
-
-## 正文页
-
-- title：`56px`，`font-weight: 700`
-- bullet：`34px`
-- line-height：`1.7`
-
-## 总结页
-
-- title：`56px`
-- summary：`34px`
-- cta：`28px`
-
-## 页脚
-
-每页右下角固定显示：
-
-- 当前页码
-- 总页数
-
-格式：`01 / 06`
-
----
-
-## 18. 渲染组件
-
-前端实现以下组件：
-
-- `CoverCardView`
-- `BulletCardView`
-- `SummaryCardView`
-- `DocumentPreview`
-
-`DocumentPreview` 负责根据 `card.type` 分发组件。
-
-预览页和导出页必须复用同一套组件和样式，不允许复制两份视图逻辑。
-
----
-
-## 19. 溢出检测
-
-导出前，系统必须检测每张卡片是否发生文本溢出。
-
-实现方式如下：
-
-- 每张导出卡片根节点 class 固定为 `.export-card`
-- 页面挂载完成后，前端脚本遍历每张 `.export-card`
-- 对每张卡片的主内容容器检测：
-    - `scrollHeight > clientHeight`
-    - `scrollWidth > clientWidth`
-
-- 只要任意一张卡片溢出，则：
-    - `window.__EXPORT_LAYOUT_OK__ = false`
-
-- 全部正常时：
-    - `window.__EXPORT_LAYOUT_OK__ = true`
-
-- 页面渲染完成后：
-    - `window.__EXPORT_READY__ = true`
-
-Playwright 导出前必须等待：
-
-- `window.__EXPORT_READY__ === true`
-- `window.__EXPORT_LAYOUT_OK__ === true`
-
-如果布局检测失败，导出直接判失败，不截图，不允许导出截断内容的图片。
-
----
-
-## 20. 导出流程
-
-导出流程是**异步任务**。
-
-接口：`POST /api/jobs/:id/export`
-
-后端行为如下：
-
-### 步骤 1
-
-读取 job，要求 `status` 必须为 `ready` 或 `done`
-
-### 步骤 2
-
-把 `status` 改为 `exporting`
-
-### 步骤 3
-
-异步启动导出逻辑，不阻塞接口返回
-
-### 步骤 4
-
-接口立即返回：
-
-```json
-{
-	"jobId": "<jobId>",
-	"status": "exporting"
-}
-```
-
-### 步骤 5
-
-前端轮询 `GET /api/jobs/:id`
-
-### 步骤 6
-
-后端导出逻辑：
-
-- 启动 Playwright Chromium
-- 打开 `http://localhost:${WEB_PORT}/export/${jobId}`
-- 等待 `__EXPORT_READY__`
-- 校验 `__EXPORT_LAYOUT_OK__`
-- 获取所有 `.export-card`
-- 逐张截图
-- 文件输出到 `storage/jobs/<jobId>/images/`
-
-### 步骤 7
-
-成功：
-
-- `status = done`
-- 更新 `image_paths_json`
-
-失败：
-
-- `status = failed`
-- 记录 `error_message`
-
----
-
-## 21. 图片命名规则
-
-导出图片命名固定为：
-
-- `01-cover.png`
-- `02-bullet.png`
-- `03-bullet.png`
-- `04-summary.png`
-
-规则：
-
-- 两位数补零
-- 后缀固定 `.png`
-- 文件名中的类型取当前卡片 `type`
-
----
-
-## 22. API 规格
-
-## 22.1 生成内容
-
-`POST /api/jobs/generate`
-
-请求体：
-
-```json
-{
-	"topic": "闭包"
-}
-```
-
-成功响应：
-
-```json
-{
-	"job": {
-		"id": "job_xxx",
-		"topic": "闭包",
-		"status": "ready",
-		"stage1Draft": "...",
-		"stage2Raw": "...",
-		"documentJson": {
-			"topic": "闭包",
-			"styleVersion": "frontend-card-v1",
-			"cards": []
-		},
-		"imagePaths": [],
-		"errorMessage": null,
-		"createdAt": "...",
-		"updatedAt": "..."
-	}
-}
-```
-
-## 22.2 获取历史列表
-
-`GET /api/jobs`
-
-返回最近 20 条，按 `updated_at desc` 排序。
-
-## 22.3 获取单个 job
-
-`GET /api/jobs/:id`
-
-返回完整 job。
-
-## 22.4 保存编辑后的 document
-
-`PUT /api/jobs/:id/document`
-
-请求体：
-
-```json
-{
-	"document": {
-		"topic": "闭包",
-		"styleVersion": "frontend-card-v1",
-		"cards": []
-	}
-}
-```
-
-规则：
-
-- 服务端必须重新做 schema 校验
-- 合法才保存
-- 保存成功后：
-    - `status` 置为 `ready`
-    - 清空旧的 `error_message`
-
-- 不自动导出
-
-## 22.5 异步导出
-
-`POST /api/jobs/:id/export`
-
-返回：
-
-```json
-{
-	"jobId": "job_xxx",
-	"status": "exporting"
-}
-```
-
----
-
-## 23. 前端状态管理
-
-前端使用 MobX。
-
-推荐实现：
-
-- `AppStore`
-- `JobStore`
-- `EditorStore`
-
-也可以合并成一个根 store，但对外暴露的职责必须清晰。
-
-## 推荐状态结构
-
-```ts
-{
-  currentJobId: string | null;
-  currentJob: Job | null;
-  documentDraft: CardDocument | null;
-  isDirty: boolean;
-  isGenerating: boolean;
-  isExporting: boolean;
-  historyJobs: Job[];
-}
-```
-
-规则：
-
-- `currentJob.documentJson` 表示服务端最新版本
-- `documentDraft` 表示当前本地编辑版本
-- 两者不一致时，`isDirty = true`
-
-## MobX 约束
-
-- store 使用 class + `makeAutoObservable`
-- React 组件使用 `observer`
-- 所有修改 documentDraft 的操作都通过 store action 完成
-- 组件内部不直接改原始 job 对象
-- 编辑区和预览区都从同一份 `documentDraft` 读取数据
-
----
-
-## 24. 历史记录规则
-
-左栏展示最近 20 条历史 Job。
-
-点击历史 Job：
-
-- 加载该 job 到中栏和右栏
-- 如果当前有未保存修改，先弹确认框
-- 用户确认后才切换
-
-不做分页，不做搜索。
-
----
-
-## 25. 运行方式
-
-本地开发以一个仓库运行，使用一个根 `package.json` 管理脚本。
-
-必须支持：
-
-- `npm run dev`：同时启动前端和后端
-- `npm run build`：构建前端与后端
-- `npm run start`：启动生产构建版本
-
-不要求打包桌面端。
-
----
-
-## 26. 错误处理
-
-## 生成失败
-
-- 前端 toast 提示
-- 中栏和右栏不更新
-- 历史列表中保留该 failed job
-
-## 保存失败
-
-- 保持本地草稿不丢失
-- 显示错误信息
-
-## 导出失败
-
-- 当前 document 不丢失
-- 历史记录保留
-- 用户可以再次点击导出
-
-## 网络错误
-
-- 前端统一 toast
-- 不做自动重试
-
----
-
-## 27. 安全边界
-
-这是本地工具，第一版不做认证。
-默认只绑定本机使用，不考虑公网暴露。
-
----
-
-## 28. 开发顺序
-
-开发顺序如下：
-
-### 第 1 步
-
-实现 `shared` 中的类型、Zod schema、常量
-
-### 第 2 步
-
-实现 `web` 主页面三栏布局和 mock 数据预览
-
-### 第 3 步
-
-实现 3 个卡片组件和 `/export/:jobId` 导出页
-
-### 第 4 步
-
-实现 `server` 中的 SQLite 初始化和 `jobs` 表
-
-### 第 5 步
-
-实现 `GET /api/jobs`、`GET /api/jobs/:id`、`PUT /api/jobs/:id/document`
-
-### 第 6 步
-
-实现 `POST /api/jobs/generate`，先用 mock LLM，再接真实 LLM
-
-### 第 7 步
-
-实现 Playwright 异步导出
-
-### 第 8 步
-
-接通真实前后端联调
-
----
-
-## 29. 验收标准
-
-系统达到第一版可用，必须满足以下条件：
-
-## 生成
-
-- 输入任意一个正常前端知识点
-- 能同步返回一个合法 `CardDocument`
-- 页数在 4~8
-- 第一页是 cover
-- 最后一页是 summary
-
-## 编辑
-
-- 用户可以改文字
-- 可以调整中间 bullet 顺序
-- 可以新增/删除中间 bullet
-- 保存后重新打开仍保留
-
-## 预览
-
-- 右栏能实时显示最终效果
-- 预览和导出页视觉一致
-
-## 导出
-
-- 点击导出后进入异步状态
-- 导出成功后生成多张 PNG
-- 图片路径写回 job
-- 文本溢出时导出失败，不允许生成截断图
-
-## 历史
-
-- 能看到最近 20 条 job
-- 能重新打开旧 job
-- SQLite 中保留完整历史
-
----
-
-## 30. 系统一句话定义
-
-这是一个**基于 Vite + React + Tailwind + MobX + Express + SQLite + Playwright 的本地可视化前端知识卡片生成器，采用 OpenAI 兼容接口两阶段生成内容，用户可轻量编辑，最终通过纯导出页逐张截图输出 1080 × 1440 PNG。**
+这版优先目标是：先把“面试作答卡组”这件事做准。 

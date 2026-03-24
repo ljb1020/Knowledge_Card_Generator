@@ -6,9 +6,27 @@ function getJobStatusLabel(status: string): string {
   if (status === 'generating') return '生成中...';
   if (status === 'validating') return '校验中...';
   if (status === 'ready') return '待导出';
+  if (status === 'ready_with_warnings') return '可导出（有提醒）';
   if (status === 'exporting') return '导出中...';
   if (status === 'done') return '已完成';
   return '失败';
+}
+
+function summarizeMessage(message: string | null, maxLength = 120): string | null {
+  if (!message) return null;
+
+  const normalized = message
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' / ');
+
+  if (!normalized) return null;
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+}
+
+function isInProgress(status: string): boolean {
+  return status === 'generating' || status === 'validating' || status === 'exporting';
 }
 
 export default observer(function LeftPanel() {
@@ -59,7 +77,7 @@ export default observer(function LeftPanel() {
   return (
     <aside className="w-[320px] min-w-[320px] bg-panel border-r border-border flex flex-col h-full">
       <div className="p-6 border-b border-border">
-        <h1 className="text-lg font-semibold text-text-primary mb-4">知识卡片生成器</h1>
+        <h1 className="text-lg font-semibold text-text-primary mb-4">前端面试作答卡生成器</h1>
         <input
           ref={inputRef}
           type="text"
@@ -79,53 +97,72 @@ export default observer(function LeftPanel() {
           >
             {appStore.isGenerating ? '生成中...' : '生成内容'}
           </button>
-          <button
-            className="px-4 py-2 border border-border rounded-lg text-sm text-text-secondary cursor-not-allowed opacity-50"
-            disabled
-            title="重新生成待后续实现"
-          >
-            重新生成
-          </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto p-4">
-        <div className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-3">
-          历史记录
-        </div>
+        <div className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-3">历史记录</div>
         <div className="space-y-2">
           {appStore.historyJobs.length === 0 ? (
             <p className="text-sm text-text-secondary">暂无历史记录</p>
           ) : (
-            appStore.historyJobs.map((job) => (
-              <div
-                key={job.id}
-                onClick={() => handleSelectJob(job.id)}
-                className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                  job.id === appStore.currentJobId
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:bg-background'
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-text-primary truncate">{job.topic}</div>
-                    <div className="text-xs text-text-secondary mt-1">{getJobStatusLabel(job.status)}</div>
+            appStore.historyJobs.map((job) => {
+              const progressPreview = isInProgress(job.status) ? summarizeMessage(job.progressMessage, 100) : null;
+              const issuePreview =
+                job.status === 'failed' || job.status === 'ready_with_warnings'
+                  ? summarizeMessage(job.errorMessage)
+                  : null;
+
+              return (
+                <div
+                  key={job.id}
+                  onClick={() => handleSelectJob(job.id)}
+                  title={progressPreview || issuePreview || undefined}
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                    job.id === appStore.currentJobId
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:bg-background'
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-text-primary truncate">{job.topic}</div>
+                      <div className="text-xs text-text-secondary mt-1">{getJobStatusLabel(job.status)}</div>
+
+                      {progressPreview && (
+                        <div className="mt-2 rounded-md px-2 py-1 text-[11px] leading-4 bg-blue-50 text-blue-700">
+                          当前进度：{progressPreview}
+                        </div>
+                      )}
+
+                      {issuePreview && (
+                        <div
+                          className={`mt-2 rounded-md px-2 py-1 text-[11px] leading-4 ${
+                            job.status === 'failed'
+                              ? 'bg-red-50 text-red-600'
+                              : 'bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          {job.status === 'failed' ? '失败原因：' : '提醒：'}
+                          {issuePreview}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDeleteJob(job.id);
+                      }}
+                      className="shrink-0 rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-background hover:text-red-600 transition-colors"
+                      aria-label={`删除 ${job.topic}`}
+                    >
+                      删除
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleDeleteJob(job.id);
-                    }}
-                    className="shrink-0 rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-background hover:text-red-600 transition-colors"
-                    aria-label={`删除 ${job.topic}`}
-                  >
-                    删除
-                  </button>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -135,7 +172,28 @@ export default observer(function LeftPanel() {
           <div className="mb-3">
             <div className="text-xs text-text-secondary">当前主题：{appStore.currentJob.topic}</div>
             {appStore.isDirty && <div className="text-xs text-amber-600 mt-1">有未保存的修改</div>}
-            {appStore.isExporting && <div className="text-xs text-blue-600 mt-1">导出中...</div>}
+            {isInProgress(appStore.currentJob.status) && appStore.currentJob.progressMessage && (
+              <div className="mt-2 rounded-md px-2 py-2 text-xs leading-5 whitespace-pre-wrap bg-blue-50 text-blue-700">
+                当前进度：
+                {'\n'}
+                {appStore.currentJob.progressMessage}
+              </div>
+            )}
+            {(appStore.currentJob.status === 'failed' ||
+              appStore.currentJob.status === 'ready_with_warnings') &&
+              appStore.currentJob.errorMessage && (
+                <div
+                  className={`mt-2 rounded-md px-2 py-2 text-xs leading-5 whitespace-pre-wrap ${
+                    appStore.currentJob.status === 'failed'
+                      ? 'bg-red-50 text-red-600'
+                      : 'bg-amber-50 text-amber-700'
+                  }`}
+                >
+                  {appStore.currentJob.status === 'failed' ? '失败原因：' : '提醒：'}
+                  {'\n'}
+                  {appStore.currentJob.errorMessage}
+                </div>
+              )}
           </div>
         )}
         <div className="flex gap-2">

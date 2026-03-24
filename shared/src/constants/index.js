@@ -1,24 +1,20 @@
 export const CARD_EXPORT_WIDTH = 1080;
 export const CARD_EXPORT_HEIGHT = 1440;
 export const CARD_STYLE_VERSION = 'frontend-card-v1';
+export const DEFAULT_GENERATED_CARD_COUNT = 4;
 export const JOB_HISTORY_LIMIT = 20;
 export const VALIDATION_RULES = {
     cover: {
-        titleMax: 24,
-        subtitleMax: 40,
-        tag: '前端知识点',
+        titleMax: 28,
+        subtitleMax: 90,
+        tag: '前端面试卡',
     },
     bullet: {
-        titleMax: 22,
-        bulletsMin: 2,
-        bulletsMax: 4,
-        bulletMax: 30,
-    },
-    summary: {
-        titleMax: 22,
-        summaryMax: 80,
-        ctaMax: 24,
+        titleMax: 28,
+        bulletsMin: 3,
+        bulletsMax: 6,
+        bulletMax: 220,
     },
     cardMin: 4,
-    cardMax: 8,
+    cardMax: 4,
 };

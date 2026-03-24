@@ -7,6 +7,8 @@ interface Props {
 }
 
 export default function CoverCardView({ card, current, total }: Props) {
+  const subtitleSizeClass = card.subtitle.length > 60 ? 'text-[28px]' : 'text-[32px]';
+
   return (
     <div
       className="w-[1080px] h-[1440px] bg-[#F8FAFC] px-[72px] py-[88px] flex flex-col relative"
@@ -21,7 +23,7 @@ export default function CoverCardView({ card, current, total }: Props) {
       >
         {card.title}
       </div>
-      <div className="text-[32px] text-[#475569]">{card.subtitle}</div>
+      <div className={`${subtitleSizeClass} text-[#475569] leading-[1.6]`}>{card.subtitle}</div>
       <div
         className="absolute bottom-[72px] right-[72px] text-[24px] text-[#475569]"
         style={{ fontFamily: 'inherit' }}

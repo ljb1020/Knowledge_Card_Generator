@@ -1,4 +1,10 @@
-import { CardDocumentSchema, type CardDocument, generateId } from 'shared';
+import {
+  CARD_STYLE_VERSION,
+  CardDocumentSchema,
+  VALIDATION_RULES,
+  type CardDocument,
+  generateId,
+} from 'shared';
 import { ZodError, ZodIssueCode } from 'zod';
 import { createChatCompletion } from '../llm/minimaxClient.js';
 import {
@@ -8,12 +14,17 @@ import {
   buildStage2Prompt,
   buildStage2RetryPrompt,
 } from '../prompts/generateDocument.js';
+import { validateCardCoverage } from './validateCardCoverage.js';
+import { validateTutorialDraft } from './validateTutorialDraft.js';
+import type { ParsedTutorialDraft } from './tutorialDraft.js';
 
 interface GenerateDocumentSuccess {
   success: true;
   stage1Draft: string;
   stage2Raw: string;
   documentJson: CardDocument;
+  warningMessage: string | null;
+  finalStatus: 'ready' | 'ready_with_warnings';
 }
 
 interface GenerateDocumentFailure {
@@ -25,33 +36,25 @@ interface GenerateDocumentFailure {
 
 export type GenerateDocumentResult = GenerateDocumentSuccess | GenerateDocumentFailure;
 
-function validateStage1Draft(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return '第一阶段讲解草稿为空';
+const FIXED_BULLET_TITLES = ['完整面试回答', '高频追问', '易错点'] as const;
+
+type ProgressStatus = 'generating' | 'validating';
+
+interface GenerateProgressUpdate {
+  status: ProgressStatus;
+  message: string;
+}
+
+interface GenerateDocumentOptions {
+  onProgress?: (update: GenerateProgressUpdate) => void | Promise<void>;
+}
+
+function getStageModel(stage: 'stage1' | 'stage2'): string | undefined {
+  if (stage === 'stage1') {
+    return process.env.LLM_STAGE1_MODEL?.trim() || process.env.LLM_MODEL?.trim() || undefined;
   }
 
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    return '第一阶段错误地返回了 JSON，而不是中文讲解草稿';
-  }
-
-  const requiredSections = [
-    '概念定义：',
-    '为什么重要：',
-    '核心机制：',
-    '常见误区与考点：',
-    '一句话总结：',
-  ];
-  const missingSections = requiredSections.filter((section) => !trimmed.includes(section));
-  if (missingSections.length > 0) {
-    return `第一阶段草稿缺少必需章节：${missingSections.join('、')}`;
-  }
-
-  if (/please provide|please tell me|请输入|请提供|补充信息/i.test(trimmed)) {
-    return '第一阶段草稿没有直接写内容，而是反过来向用户索取信息';
-  }
-
-  return null;
+  return process.env.LLM_STAGE2_MODEL?.trim() || process.env.LLM_MODEL?.trim() || undefined;
 }
 
 function extractJsonObject(raw: string): string {
@@ -59,7 +62,7 @@ function extractJsonObject(raw: string): string {
   const start = trimmed.indexOf('{');
   const end = trimmed.lastIndexOf('}');
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error('模型输出中没有找到合法的 JSON 对象');
+    throw new Error('Stage 2 / JSON 解析 / 模型输出中没有找到合法的 JSON 对象');
   }
 
   return trimmed.slice(start, end + 1);
@@ -75,6 +78,13 @@ function normalizeText(value: unknown): string {
     .trim();
 }
 
+function stripAnswerBulletLeadLabel(value: string): string {
+  return value.replace(
+    /^\s*(?:定义|关键论据|总结|答题结构|回答思路|第一点|第二点|第三点|第[一二三四五六七八九十]点)\s*[：:]\s*/u,
+    ''
+  );
+}
+
 function normalizeCard(card: Record<string, unknown>): Record<string, unknown> {
   const type = card.type;
   const id = typeof card.id === 'string' && card.id.trim() ? card.id : generateId();
@@ -85,7 +95,7 @@ function normalizeCard(card: Record<string, unknown>): Record<string, unknown> {
       type,
       title: normalizeText(card.title),
       subtitle: normalizeText(card.subtitle),
-      tag: '前端知识点',
+      tag: VALIDATION_RULES.cover.tag,
     };
   }
 
@@ -95,16 +105,6 @@ function normalizeCard(card: Record<string, unknown>): Record<string, unknown> {
       type,
       title: normalizeText(card.title),
       bullets: Array.isArray(card.bullets) ? card.bullets.map(normalizeText).filter(Boolean) : [],
-    };
-  }
-
-  if (type === 'summary') {
-    return {
-      id,
-      type,
-      title: normalizeText(card.title),
-      summary: normalizeText(card.summary),
-      cta: normalizeText(card.cta),
     };
   }
 
@@ -120,8 +120,36 @@ function normalizeDocument(topic: string, rawValue: unknown): Record<string, unk
 
   return {
     topic,
-    styleVersion: 'frontend-card-v1',
-    cards: rawCards.map((card) => normalizeCard((card ?? {}) as Record<string, unknown>)),
+    styleVersion: CARD_STYLE_VERSION,
+    cards: rawCards.map((card, index) => {
+      const normalizedCard = normalizeCard((card ?? {}) as Record<string, unknown>);
+      if (
+        index === 1 &&
+        normalizedCard.type === 'bullet' &&
+        Array.isArray((normalizedCard as { bullets?: unknown }).bullets)
+      ) {
+        return {
+          ...normalizedCard,
+          title: FIXED_BULLET_TITLES[0],
+          bullets: ((normalizedCard as { bullets: unknown[] }).bullets as string[]).map((bullet: string) =>
+            stripAnswerBulletLeadLabel(bullet)
+          ),
+        };
+      }
+
+      if (
+        normalizedCard.type === 'bullet' &&
+        index >= 2 &&
+        index <= 3
+      ) {
+        return {
+          ...normalizedCard,
+          title: FIXED_BULLET_TITLES[index - 1],
+        };
+      }
+
+      return normalizedCard;
+    }),
   };
 }
 
@@ -129,40 +157,30 @@ function containsDisallowedText(value: string): boolean {
   return /<[^>]+>|```|\p{Extended_Pictographic}/u.test(value);
 }
 
-function validateContentRules(document: CardDocument): string[] {
-  const errors: string[] = [];
+function validateContentRules(document: CardDocument): { hardErrors: string[] } {
+  const hardErrors: string[] = [];
 
-  document.cards.forEach((card: CardDocument['cards'][number], index: number) => {
-    const prefix = `cards[${index}]`;
+  document.cards.forEach((card, index) => {
+    const prefix = `Stage 2 / cards[${index}]`;
     if (containsDisallowedText(card.title)) {
-      errors.push(`${prefix}.title 含有不允许出现的标记内容`);
+      hardErrors.push(`${prefix}.title / 含有不允许出现的标记内容`);
     }
 
     if (card.type === 'cover') {
       if (containsDisallowedText(card.subtitle)) {
-        errors.push(`${prefix}.subtitle 含有不允许出现的标记内容`);
+        hardErrors.push(`${prefix}.subtitle / 含有不允许出现的标记内容`);
       }
       return;
     }
 
-    if (card.type === 'bullet') {
-      card.bullets.forEach((bullet: string, bulletIndex: number) => {
-        if (containsDisallowedText(bullet)) {
-          errors.push(`${prefix}.bullets[${bulletIndex}] 含有不允许出现的标记内容`);
-        }
-      });
-      return;
-    }
-
-    if (containsDisallowedText(card.summary)) {
-      errors.push(`${prefix}.summary 含有不允许出现的标记内容`);
-    }
-    if (containsDisallowedText(card.cta)) {
-      errors.push(`${prefix}.cta 含有不允许出现的标记内容`);
-    }
+    card.bullets.forEach((bullet, bulletIndex) => {
+      if (containsDisallowedText(bullet)) {
+        hardErrors.push(`${prefix}.bullets[${bulletIndex}] / 含有不允许出现的标记内容`);
+      }
+    });
   });
 
-  return errors;
+  return { hardErrors };
 }
 
 function formatIssuePath(path: (string | number)[]): string {
@@ -204,30 +222,36 @@ function formatZodIssue(issue: ZodError['issues'][number]): string {
     return `${target} 不符合允许的结构类型`;
   }
 
-  if (issue.code === ZodIssueCode.custom) {
-    return `${target}：${issue.message}`;
-  }
-
   return `${target}：${issue.message}`;
 }
 
 function formatZodErrors(error: ZodError): string {
-  return error.issues
-    .map((issue) => formatZodIssue(issue))
-    .join('\n');
+  return error.issues.map((issue) => `Stage 2 / Schema / ${formatZodIssue(issue)}`).join('\n');
 }
 
-function parseAndValidateDocument(topic: string, raw: string): { documentJson: CardDocument } | { errorMessage: string } {
+function joinWarnings(warnings: string[]): string | null {
+  const normalized = warnings.map((item) => item.trim()).filter(Boolean);
+  return normalized.length > 0 ? normalized.join('\n') : null;
+}
+
+function parseAndValidateDocument(
+  topic: string,
+  parsedDraft: ParsedTutorialDraft,
+  raw: string
+): { documentJson: CardDocument; warnings: string[] } | { errorMessage: string } {
   try {
     const parsed = JSON.parse(extractJsonObject(raw)) as unknown;
     const normalized = normalizeDocument(topic, parsed);
     const validated = CardDocumentSchema.parse(normalized);
-    const contentErrors = validateContentRules(validated);
-    if (contentErrors.length > 0) {
-      return { errorMessage: contentErrors.join('\n') };
+    const contentValidation = validateContentRules(validated);
+    const coverageValidation = validateCardCoverage(topic, validated, parsedDraft);
+    const hardErrors = [...contentValidation.hardErrors, ...coverageValidation.hardErrors];
+
+    if (hardErrors.length > 0) {
+      return { errorMessage: hardErrors.join('\n') };
     }
 
-    return { documentJson: validated };
+    return { documentJson: validated, warnings: coverageValidation.warnings };
   } catch (err) {
     if (err instanceof ZodError) {
       return { errorMessage: formatZodErrors(err) };
@@ -238,121 +262,157 @@ function parseAndValidateDocument(topic: string, raw: string): { documentJson: C
 }
 
 export async function generateDocumentForTopic(topic: string): Promise<GenerateDocumentResult> {
+  return generateDocumentForTopicWithOptions(topic, {});
+}
+
+export async function generateDocumentForTopicWithOptions(
+  topic: string,
+  options: GenerateDocumentOptions = {}
+): Promise<GenerateDocumentResult> {
   let stage1Draft: string | null = null;
   let stage2Raw: string | null = null;
+  const emitProgress = async (status: ProgressStatus, message: string): Promise<void> => {
+    await options.onProgress?.({ status, message });
+  };
 
   try {
+    await emitProgress('generating', 'Stage 1 / 正在生成面试底稿');
     stage1Draft = await createChatCompletion(
       [
         {
           role: 'system',
-          content: '你是一名资深前端技术作者，擅长为中文读者输出准确、实用、专业的前端知识讲解。',
+          content:
+            '你是一名前端面试教练。你只能围绕当前知识点输出中文内容，不要偷换主题，不要输出 JSON。',
         },
         {
           role: 'user',
           content: buildStage1Prompt(topic),
         },
       ],
-      { temperature: 0.3, maxTokens: 1600 }
+      { model: getStageModel('stage1'), temperature: 0.15, maxTokens: 2400 }
     );
 
-    let stage1Error = validateStage1Draft(stage1Draft);
-    if (stage1Error) {
+    let stage1Validation = validateTutorialDraft(topic, stage1Draft);
+    for (let retryIndex = 0; retryIndex < 2 && !stage1Validation.success; retryIndex += 1) {
+      await emitProgress('generating', `Stage 1 / 首次校验未通过，正在重试（${retryIndex + 1}/2）`);
       stage1Draft = await createChatCompletion(
         [
           {
             role: 'system',
-            content: '你要立即输出一份合格的前端中文讲解草稿，不要提问，不要索取更多信息。',
+            content:
+              '你要立刻输出一份合格的前端面试作答底稿。只讲指定知识点，不要换题，不要提问，不要输出 JSON。',
           },
           {
             role: 'user',
-            content: buildStage1RetryPrompt(topic, stage1Draft, stage1Error),
+            content: buildStage1RetryPrompt(topic, stage1Draft, stage1Validation.errorMessage),
           },
         ],
-        { temperature: 0.2, maxTokens: 1600 }
+        { model: getStageModel('stage1'), temperature: 0.2, maxTokens: 2400 }
       );
 
-      stage1Error = validateStage1Draft(stage1Draft);
+      stage1Validation = validateTutorialDraft(topic, stage1Draft);
     }
 
-    if (stage1Error) {
+    if (!stage1Validation.success) {
       return {
         success: false,
         stage1Draft,
         stage2Raw: null,
-        errorMessage: stage1Error,
+        errorMessage: stage1Validation.errorMessage,
       };
     }
 
+    const parsedDraft = stage1Validation.parsedDraft;
+    const collectedWarnings = [...stage1Validation.warnings];
+
+    await emitProgress('validating', 'Stage 2 / 正在装配 4 张面试作答卡');
     stage2Raw = await createChatCompletion(
       [
         {
           role: 'system',
-          content: '你负责把前端讲解草稿转换成严格可解析的 JSON 卡片数据，只输出 JSON。',
+          content:
+            '你负责把结构化的前端面试底稿装配成严格可解析的 CardDocument JSON。只输出 JSON。',
         },
         {
           role: 'user',
-          content: buildStage2Prompt(topic, stage1Draft),
+          content: buildStage2Prompt(topic, parsedDraft),
         },
       ],
-      { temperature: 0.2, maxTokens: 3200 }
+      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 2600 }
     );
 
-    const stage2Validation = parseAndValidateDocument(topic, stage2Raw);
+    const stage2Validation = parseAndValidateDocument(topic, parsedDraft, stage2Raw);
     if ('documentJson' in stage2Validation) {
+      const warningMessage = joinWarnings([...collectedWarnings, ...stage2Validation.warnings]);
       return {
         success: true,
         stage1Draft,
         stage2Raw,
         documentJson: stage2Validation.documentJson,
+        warningMessage,
+        finalStatus: warningMessage ? 'ready_with_warnings' : 'ready',
       };
     }
 
+    await emitProgress('validating', 'Stage 2 / 首版卡片未通过校验，正在重试');
     stage2Raw = await createChatCompletion(
       [
         {
           role: 'system',
-          content: '你负责把前端讲解草稿转换成严格可解析的 JSON 卡片数据，只输出 JSON。',
+          content:
+            '你负责把结构化的前端面试底稿装配成严格可解析的 CardDocument JSON。只输出 JSON。',
         },
         {
           role: 'user',
-          content: buildStage2RetryPrompt(topic, stage1Draft, stage2Raw, stage2Validation.errorMessage),
+          content: buildStage2RetryPrompt(topic, parsedDraft, stage2Raw, stage2Validation.errorMessage),
         },
       ],
-      { temperature: 0.1, maxTokens: 3200 }
+      { model: getStageModel('stage2'), temperature: 0.1, maxTokens: 2600 }
     );
 
-    const retriedStage2Validation = parseAndValidateDocument(topic, stage2Raw);
+    const retriedStage2Validation = parseAndValidateDocument(topic, parsedDraft, stage2Raw);
     if ('documentJson' in retriedStage2Validation) {
+      const warningMessage = joinWarnings([...collectedWarnings, ...retriedStage2Validation.warnings]);
       return {
         success: true,
         stage1Draft,
         stage2Raw,
         documentJson: retriedStage2Validation.documentJson,
+        warningMessage,
+        finalStatus: warningMessage ? 'ready_with_warnings' : 'ready',
       };
     }
 
+    await emitProgress('validating', 'Stage 2 / 正在修复最终卡片结构');
     const repairedStage2Raw = await createChatCompletion(
       [
         {
           role: 'system',
-          content: '你负责把不合格的卡片 JSON 修复成最终合法结果，只输出 JSON。',
+          content: '你负责把不合格的卡片 JSON 修复成最终合法结构。只输出 JSON。',
         },
         {
           role: 'user',
-          content: buildRepairPrompt(topic, stage1Draft, stage2Raw, retriedStage2Validation.errorMessage),
+          content: buildRepairPrompt(
+            topic,
+            parsedDraft,
+            stage2Raw,
+            retriedStage2Validation.errorMessage
+          ),
         },
       ],
-      { temperature: 0.2, maxTokens: 3200 }
+      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 2600 }
     );
 
-    const repairedValidation = parseAndValidateDocument(topic, repairedStage2Raw);
+    const repairedValidation = parseAndValidateDocument(topic, parsedDraft, repairedStage2Raw);
     if ('documentJson' in repairedValidation) {
+      const warningMessage = joinWarnings([...collectedWarnings, ...repairedValidation.warnings]);
       return {
         success: true,
         stage1Draft,
         stage2Raw: repairedStage2Raw,
         documentJson: repairedValidation.documentJson,
+        warningMessage,
+        finalStatus: warningMessage ? 'ready_with_warnings' : 'ready',
       };
     }
 

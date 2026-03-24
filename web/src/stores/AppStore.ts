@@ -1,20 +1,19 @@
 import { makeAutoObservable } from 'mobx';
-import type { Job, CardDocument, Card, BulletCard } from 'shared';
-
-function generateId(): string {
-  return `id_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-}
+import type { BulletCard, Card, CardDocument, Job } from 'shared';
 
 class AppStore {
   currentJobId: string | null = null;
   currentJob: Job | null = null;
   documentDraft: CardDocument | null = null;
-  isDirty: boolean = false;
-  isGenerating: boolean = false;
-  isExporting: boolean = false;
+  isDirty = false;
+  isGenerating = false;
+  isExporting = false;
   historyJobs: Job[] = [];
   errorMessage: string | null = null;
-  isSaving: boolean = false;
+  isSaving = false;
+
+  private pollGenerationTimer: ReturnType<typeof setTimeout> | null = null;
+  private pollExportTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     makeAutoObservable(this);
@@ -26,7 +25,7 @@ class AppStore {
       if (!res.ok) throw new Error('Failed to load jobs');
       const data = await res.json();
       this.historyJobs = data.jobs as Job[];
-    } catch (err) {
+    } catch {
       this.setError('加载历史记录失败');
     }
   }
@@ -37,7 +36,8 @@ class AppStore {
       if (!res.ok) throw new Error('Failed to load job');
       const data = await res.json();
       this.setCurrentJob(data.job as Job);
-    } catch (err) {
+      this.ensurePollingForCurrentJob();
+    } catch {
       this.setError('加载卡片失败');
     }
   }
@@ -45,21 +45,22 @@ class AppStore {
   async saveDocument(): Promise<boolean> {
     if (!this.currentJobId || !this.documentDraft) return false;
     this.isSaving = true;
+
     try {
       const res = await fetch(`/api/jobs/${this.currentJobId}/document`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ document: this.documentDraft }),
       });
+
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error ?? 'Save failed');
       }
+
       const data = await res.json();
-      // Update currentJob with the server response
       this.currentJob = data.job as Job;
       this.isDirty = false;
-      // Refresh history
       await this.loadHistoryJobs();
       return true;
     } catch (err) {
@@ -72,34 +73,34 @@ class AppStore {
 
   async generateJob(topic: string): Promise<boolean> {
     this.isGenerating = true;
+
     try {
       const res = await fetch('/api/jobs/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic }),
       });
+
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error ?? 'Generate failed');
       }
+
       const data = await res.json();
-      const job = data.job as Job;
-      this.setCurrentJob(job);
+      this.setCurrentJob(data.job as Job);
       await this.loadHistoryJobs();
+      this.ensurePollingForCurrentJob();
       return true;
     } catch (err) {
+      this.isGenerating = false;
       this.setError(err instanceof Error ? err.message : '生成失败');
       return false;
-    } finally {
-      this.isGenerating = false;
     }
   }
 
   async deleteJob(id: string): Promise<boolean> {
     try {
-      const res = await fetch(`/api/jobs/${id}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error ?? 'Delete failed');
@@ -117,20 +118,21 @@ class AppStore {
     }
   }
 
-  private pollExportTimer: ReturnType<typeof setTimeout> | null = null;
-
   async startExport(): Promise<boolean> {
     if (!this.currentJobId) return false;
     this.isExporting = true;
+
     try {
       const res = await fetch(`/api/jobs/${this.currentJobId}/export`, {
         method: 'POST',
       });
+
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error ?? 'Export failed');
       }
-      // Start polling for status updates
+
+      this.currentJob = this.currentJob ? { ...this.currentJob, status: 'exporting' } : this.currentJob;
       this.pollExportStatus();
       return true;
     } catch (err) {
@@ -140,28 +142,55 @@ class AppStore {
     }
   }
 
+  private async pollGenerationStatus(): Promise<void> {
+    if (!this.currentJobId) return;
+
+    const res = await fetch(`/api/jobs/${this.currentJobId}`);
+    if (!res.ok) {
+      this.isGenerating = false;
+      return;
+    }
+
+    const data = await res.json();
+    const job = data.job as Job;
+    this.setCurrentJob(job);
+    await this.loadHistoryJobs();
+
+    if (job.status === 'generating' || job.status === 'validating') {
+      this.isGenerating = true;
+      this.pollGenerationTimer = setTimeout(() => this.pollGenerationStatus(), 1000);
+    } else {
+      this.isGenerating = false;
+    }
+  }
+
   private async pollExportStatus(): Promise<void> {
     if (!this.currentJobId) return;
+
     const res = await fetch(`/api/jobs/${this.currentJobId}`);
     if (!res.ok) {
       this.isExporting = false;
       return;
     }
+
     const data = await res.json();
     const job = data.job as Job;
-    this.currentJob = job;
+    this.setCurrentJob(job);
 
     if (job.status === 'exporting') {
-      // Continue polling
       this.pollExportTimer = setTimeout(() => this.pollExportStatus(), 1000);
     } else {
-      // Export finished (done or failed)
       this.isExporting = false;
       await this.loadHistoryJobs();
     }
   }
 
   clearPollTimer(): void {
+    if (this.pollGenerationTimer) {
+      clearTimeout(this.pollGenerationTimer);
+      this.pollGenerationTimer = null;
+    }
+
     if (this.pollExportTimer) {
       clearTimeout(this.pollExportTimer);
       this.pollExportTimer = null;
@@ -171,17 +200,13 @@ class AppStore {
   setCurrentJob(job: Job | null) {
     this.currentJob = job;
     this.currentJobId = job?.id ?? null;
-    if (job?.documentJson) {
-      this.documentDraft = JSON.parse(JSON.stringify(job.documentJson));
-    } else {
-      this.documentDraft = null;
-    }
+    this.documentDraft = job?.documentJson ? JSON.parse(JSON.stringify(job.documentJson)) : null;
     this.isDirty = false;
   }
 
   updateCardField(cardIndex: number, updates: Partial<Card>) {
     if (!this.documentDraft) return;
-    const card = this.documentDraft.cards[cardIndex] as Card;
+    const card = this.documentDraft.cards[cardIndex];
     Object.assign(card, updates);
     this.isDirty = true;
   }
@@ -195,40 +220,11 @@ class AppStore {
     }
   }
 
-  deleteCard(cardIndex: number) {
-    if (!this.documentDraft) return;
-    const total = this.documentDraft.cards.length;
-    if (total <= 4) return;
-    const card = this.documentDraft.cards[cardIndex];
-    if (card.type === 'cover' || card.type === 'summary') return;
-    this.documentDraft.cards.splice(cardIndex, 1);
-    this.isDirty = true;
-  }
+  deleteCard(_cardIndex: number) {}
 
-  addCard(afterIndex: number) {
-    if (!this.documentDraft) return;
-    const total = this.documentDraft.cards.length;
-    if (total >= 8) return;
-    const newCard: BulletCard = {
-      id: generateId(),
-      type: 'bullet',
-      title: '新要点',
-      bullets: ['要点内容', '要点内容'],
-    };
-    this.documentDraft.cards.splice(afterIndex, 0, newCard);
-    this.isDirty = true;
-  }
+  addCard(_afterIndex: number) {}
 
-  moveCard(cardIndex: number, direction: 'up' | 'down') {
-    if (!this.documentDraft) return;
-    const cards = this.documentDraft.cards;
-    if (cardIndex <= 1 && direction === 'up') return;
-    if (cardIndex >= cards.length - 2 && direction === 'down') return;
-    const targetIndex = direction === 'up' ? cardIndex - 1 : cardIndex + 1;
-    const [card] = cards.splice(cardIndex, 1);
-    cards.splice(targetIndex, 0, card);
-    this.isDirty = true;
-  }
+  moveCard(_cardIndex: number, _direction: 'up' | 'down') {}
 
   setGenerating(val: boolean) {
     this.isGenerating = val;
@@ -250,12 +246,41 @@ class AppStore {
     this.errorMessage = null;
   }
 
+  private ensurePollingForCurrentJob(): void {
+    this.clearPollTimer();
+
+    if (!this.currentJob) {
+      this.isGenerating = false;
+      this.isExporting = false;
+      return;
+    }
+
+    if (this.currentJob.status === 'generating' || this.currentJob.status === 'validating') {
+      this.isGenerating = true;
+      this.pollGenerationTimer = setTimeout(() => this.pollGenerationStatus(), 1000);
+      return;
+    }
+
+    if (this.currentJob.status === 'exporting') {
+      this.isExporting = true;
+      this.pollExportTimer = setTimeout(() => this.pollExportStatus(), 1000);
+      return;
+    }
+
+    this.isGenerating = false;
+    this.isExporting = false;
+  }
+
   get hasUnsavedChanges(): boolean {
     return this.isDirty;
   }
 
   get canExport(): boolean {
-    return this.currentJob?.status === 'ready' || this.currentJob?.status === 'done';
+    return (
+      this.currentJob?.status === 'ready' ||
+      this.currentJob?.status === 'ready_with_warnings' ||
+      this.currentJob?.status === 'done'
+    );
   }
 }
 

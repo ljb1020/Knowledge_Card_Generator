@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { chromium, type Page } from 'playwright';
-import { resolveProjectPath } from '../utils/loadEnv.js';
+import { getJobImagesDir, getPublicImagePath } from '../utils/jobArtifacts.js';
 
 type ExportPageGlobal = {
   __EXPORT_READY__?: boolean;
@@ -14,7 +14,6 @@ type ExportPageGlobal = {
 
 const WEB_PORT = parseInt(process.env.WEB_PORT ?? '5173', 10);
 const WEB_HOST = process.env.WEB_HOST ?? 'localhost';
-const STORAGE_DIR = resolveProjectPath(process.env.APP_STORAGE_DIR ?? './storage');
 
 export interface ExportResult {
   success: boolean;
@@ -22,15 +21,12 @@ export interface ExportResult {
   errorMessage?: string;
 }
 
-function formatExportTimestamp(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
+function getExportFilename(cardIndex: number, typeStr: string): string {
+  if (cardIndex === 0 || typeStr === 'cover') {
+    return 'cover.png';
+  }
 
-  return `${year}_${month}_${day}_${hours}_${minutes}_${seconds}`;
+  return `bullet${cardIndex}.png`;
 }
 
 async function waitForExportReady(page: Page, timeout = 15000): Promise<number> {
@@ -60,11 +56,10 @@ async function checkLayoutOk(page: Page): Promise<boolean> {
   return page.evaluate(() => (globalThis as unknown as ExportPageGlobal).__EXPORT_LAYOUT_OK__ === true);
 }
 
-export async function exportJob(jobId: string): Promise<ExportResult> {
-  const jobImagesDir = path.join(STORAGE_DIR, 'jobs', jobId, 'images');
+export async function exportJob(jobId: string, createdAt: string): Promise<ExportResult> {
+  const jobImagesDir = getJobImagesDir(createdAt);
   fs.rmSync(jobImagesDir, { recursive: true, force: true });
   fs.mkdirSync(jobImagesDir, { recursive: true });
-  const exportTimestamp = formatExportTimestamp(new Date());
 
   let browser;
   try {
@@ -96,9 +91,8 @@ export async function exportJob(jobId: string): Promise<ExportResult> {
 
     for (let i = 0; i < cardCount; i++) {
       const card = cards.nth(i);
-      const pageNum = i + 1;
       const typeStr = (await card.getAttribute('data-type')) ?? 'card';
-      const filename = `${exportTimestamp}_${String(pageNum).padStart(2, '0')}-${typeStr}.png`;
+      const filename = getExportFilename(i, typeStr);
       const filePath = path.join(jobImagesDir, filename);
 
       await card.screenshot({ path: filePath, type: 'png' });
@@ -108,7 +102,7 @@ export async function exportJob(jobId: string): Promise<ExportResult> {
         throw new Error(`Screenshot file was not written correctly: ${filePath}`);
       }
 
-      imagePaths.push(`storage/jobs/${jobId}/images/${filename}`);
+      imagePaths.push(getPublicImagePath(createdAt, filename));
     }
 
     if (imagePaths.length !== cardCount) {

@@ -1,7 +1,6 @@
 import type { Card } from 'shared';
 import CoverCardView from './CoverCardView';
 import BulletCardView from './BulletCardView';
-import SummaryCardView from './SummaryCardView';
 
 interface Props {
   card: Card;
@@ -11,6 +10,5 @@ interface Props {
 
 export default function ExportCardView({ card, current, total }: Props) {
   if (card.type === 'cover') return <CoverCardView card={card} current={current} total={total} />;
-  if (card.type === 'bullet') return <BulletCardView card={card} current={current} total={total} />;
-  return <SummaryCardView card={card} current={current} total={total} />;
+  return <BulletCardView card={card} current={current} total={total} />;
 }
