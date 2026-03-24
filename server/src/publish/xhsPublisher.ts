@@ -50,7 +50,10 @@ export async function publishDraft(
   try {
     browser = await chromium.launch({
       headless: false,
-      args: ['--start-maximized', '--no-proxy-server'],
+      // Playwright 层面拦截系统环境变量 HTTP_PROXY
+      proxy: { server: 'per-context' },
+      // Chromium 引擎层面强制物理直连
+      args: ['--start-maximized', '--proxy-server=direct://', '--no-proxy-server'],
     });
 
     // 如果有已保存的 cookie 就加载，没有就空白启动
