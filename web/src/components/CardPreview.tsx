@@ -18,7 +18,10 @@ export default function CardPreview({ card, current, total }: Props) {
         width,
         height,
         overflow: 'hidden',
-        flexShrink: '0',
+        flexShrink: 0,
+        borderRadius: '8px',
+        boxShadow:
+          '0 0 0 1px rgba(59,130,246,0.14), 0 8px 32px rgba(0,0,0,0.55), 0 0 24px rgba(59,130,246,0.07)',
       }}
     >
       <div
