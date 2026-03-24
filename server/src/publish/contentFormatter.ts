@@ -13,5 +13,5 @@ export function formatXhsTitle(topic: string): string {
  */
 export function formatXhsContent(document: CardDocument): string {
   const { topic } = document;
-  return `#前端面试 #春招\n前端面试遇到面试官问${topic}，这样回答才能拿满分`;
+  return `#前端面试 #春招 \n前端面试遇到面试官问${topic}，这样回答才能拿满分`;
 }

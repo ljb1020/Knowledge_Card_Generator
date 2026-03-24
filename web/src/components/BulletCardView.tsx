@@ -65,6 +65,20 @@ function stripAnswerLead(text: string): string {
   return text.replace(/^(?:\s*(?:——|--|-)\s*)+/, '').trim();
 }
 
+function renderTextWithHighlight(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={i} style={{ color: '#00F0FF', fontWeight: 600, textShadow: '0 0 8px rgba(0,240,255,0.4)' }}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 /**
  * 高频追问的 bullet 经常是“多个连续问题 + 答题方向”。
  * 这里优先按显式答题提示词切分；如果没有提示词，只有在“恰好一个问号”时才退回旧拆法。
@@ -237,15 +251,15 @@ export default function BulletCardView({ card, current, total, sectionIndex, bul
                     return (
                       <>
                         <div style={{ color: '#C8E8FF', fontWeight: 600, marginBottom: '10px' }}>
-                          {qa.question}
+                          {renderTextWithHighlight(qa.question)}
                         </div>
                         <div style={{ color: '#8AAFC4' }}>
-                          {qa.answer}
+                          {renderTextWithHighlight(qa.answer)}
                         </div>
                       </>
                     );
                   }
-                  return <span style={{ color: '#8AAFC4' }}>{b.trim()}</span>;
+                  return <span style={{ color: '#8AAFC4' }}>{renderTextWithHighlight(b.trim())}</span>;
                 })()}
               </div>
             </div>

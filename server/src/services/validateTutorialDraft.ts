@@ -26,23 +26,23 @@ export type TutorialDraftValidationResult =
 
 const ANSWER_RANGE: RangeCheck = {
   hardMin: 240,
-  hardMax: 720,
+  hardMax: 1000,
   idealMin: 300,
-  idealMax: 600,
+  idealMax: 800,
 };
 
 const FOLLOW_UP_RANGE: RangeCheck = {
   hardMin: 160,
-  hardMax: 520,
+  hardMax: 800,
   idealMin: 200,
-  idealMax: 400,
+  idealMax: 600,
 };
 
 const PITFALL_RANGE: RangeCheck = {
   hardMin: 160,
-  hardMax: 520,
+  hardMax: 800,
   idealMin: 200,
-  idealMax: 400,
+  idealMax: 600,
 };
 
 function stripMarkdownCodeFences(value: string): string {
