@@ -10,7 +10,6 @@ export interface RenderItem {
   bulletOffset: number;      // 本页第一条 bullet 在原数组中的起始下标
 }
 
-const MAX_BULLETS_PER_PAGE = 3;
 const MAX_USABLE_HEIGHT = 889; // 1440 - 231(顶部标题区) - 320(底部 bento + padding)
 
 // Container 实际内宽计算（根据 BulletCardView.tsx 布局）：
@@ -129,7 +128,7 @@ function paginateBullets(bullets: string[], isFollowUp: boolean): string[][] {
         if (i > 0) testHeight += BULLET_GAP_PX;
     }
 
-    if (currentPage.length > 0 && (testPage.length > MAX_BULLETS_PER_PAGE || testHeight > MAX_USABLE_HEIGHT)) {
+    if (currentPage.length > 0 && testHeight > MAX_USABLE_HEIGHT) {
       // 容纳不下：锁定前一页
       pages.push(currentPage);
       currentPage = [b]; // 新页只有当前条目
