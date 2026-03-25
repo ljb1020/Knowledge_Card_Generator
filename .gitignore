@@ -35,8 +35,15 @@ web/node_modules/.vite/
 .DS_Store
 Thumbs.db
 
+# Testing
+playwright-report/
+test-results/
+blob-report/
+
 # Editor / local workspace files
 .vscode/
 .idea/
 .claude/
+.gemini/
+.cursor/
 skills/

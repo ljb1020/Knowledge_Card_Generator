@@ -63,7 +63,7 @@ function registerProvider(id: string, envBaseUrl: string, defaultBaseUrl: string
 }
 
 // Register available providers (only those with API keys configured)
-registerProvider('minimax', 'LLM_BASE_URL', 'https://api.minimaxi.com/v1', 'LLM_API_KEY', process.env.LLM_MODEL ?? 'MiniMax-M2.7', 'MiniMax');
+registerProvider('minimax', 'MINIMAX_BASE_URL', 'https://api.minimaxi.com/v1', 'MINIMAX_API_KEY', process.env.MINIMAX_MODEL ?? 'MiniMax-M2.7', 'MiniMax');
 registerProvider('deepseek', 'DEEPSEEK_BASE_URL', 'https://api.deepseek.com/v1', 'DEEPSEEK_API_KEY', process.env.DEEPSEEK_MODEL ?? 'deepseek-chat', 'DeepSeek V3');
 
 const DEFAULT_PROVIDER_ID = 'minimax';

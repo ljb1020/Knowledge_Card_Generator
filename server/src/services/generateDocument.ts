@@ -51,13 +51,8 @@ interface GenerateDocumentOptions {
   modelId?: string;
 }
 
-function getStageModel(stage: 'stage1' | 'stage2'): string | undefined {
-  if (stage === 'stage1') {
-    return process.env.LLM_STAGE1_MODEL?.trim() || process.env.LLM_MODEL?.trim() || undefined;
-  }
-
-  return process.env.LLM_STAGE2_MODEL?.trim() || process.env.LLM_MODEL?.trim() || undefined;
-}
+// Model is now determined by the provider's defaultModel (registered in minimaxClient.ts).
+// No need for getStageModel() — each provider reads its own env var at registration time.
 
 function extractJsonObject(raw: string): string {
   const trimmed = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
@@ -291,7 +286,7 @@ export async function generateDocumentForTopicWithOptions(
           content: buildStage1Prompt(topic),
         },
       ],
-      { model: getStageModel('stage1'), temperature: 0.15, maxTokens: 2400, providerId: options.modelId }
+      { temperature: 0.15, maxTokens: 2400, providerId: options.modelId }
     );
 
     let stage1Validation = validateTutorialDraft(topic, stage1Draft);
@@ -309,7 +304,7 @@ export async function generateDocumentForTopicWithOptions(
             content: buildStage1RetryPrompt(topic, stage1Draft, stage1Validation.errorMessage),
           },
         ],
-        { model: getStageModel('stage1'), temperature: 0.2, maxTokens: 2400, providerId: options.modelId }
+        { temperature: 0.2, maxTokens: 2400, providerId: options.modelId }
       );
 
       stage1Validation = validateTutorialDraft(topic, stage1Draft);
@@ -340,7 +335,7 @@ export async function generateDocumentForTopicWithOptions(
           content: buildStage2Prompt(topic, parsedDraft),
         },
       ],
-      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 4000, providerId: options.modelId }
+      { temperature: 0.2, maxTokens: 4000, providerId: options.modelId }
     );
 
     const stage2Validation = parseAndValidateDocument(topic, parsedDraft, stage2Raw);
@@ -369,7 +364,7 @@ export async function generateDocumentForTopicWithOptions(
           content: buildStage2RetryPrompt(topic, parsedDraft, stage2Raw, stage2Validation.errorMessage),
         },
       ],
-      { model: getStageModel('stage2'), temperature: 0.1, maxTokens: 2600, providerId: options.modelId }
+      { temperature: 0.1, maxTokens: 2600, providerId: options.modelId }
     );
 
     const retriedStage2Validation = parseAndValidateDocument(topic, parsedDraft, stage2Raw);
@@ -402,7 +397,7 @@ export async function generateDocumentForTopicWithOptions(
           ),
         },
       ],
-      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 4000, providerId: options.modelId }
+      { temperature: 0.2, maxTokens: 4000, providerId: options.modelId }
     );
 
     const repairedValidation = parseAndValidateDocument(topic, parsedDraft, repairedStage2Raw);
