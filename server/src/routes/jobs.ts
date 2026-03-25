@@ -26,9 +26,10 @@ import {
 
 const router = Router();
 
-async function runGenerationJob(db: Database.Database, jobId: string, topic: string): Promise<void> {
+async function runGenerationJob(db: Database.Database, jobId: string, topic: string, modelId?: string): Promise<void> {
   try {
     const generationResult = await generateDocumentForTopicWithOptions(topic, {
+      modelId,
       onProgress: async ({ status, message }) => {
         updateJobGeneration(db, jobId, {
           status,
@@ -186,6 +187,7 @@ router.post('/generate', async (req, res) => {
     }
 
     const topic = parsed.data.topic.trim();
+    const modelId = typeof req.body.modelId === 'string' ? req.body.modelId.trim() : undefined;
     const jobId = generateJobId();
 
     const job = createJob(res.locals.db, {
@@ -197,7 +199,7 @@ router.post('/generate', async (req, res) => {
     });
 
     setTimeout(() => {
-      runGenerationJob(res.locals.db, jobId, topic).catch((err) => {
+      runGenerationJob(res.locals.db, jobId, topic, modelId).catch((err) => {
         console.error(`Background generation failed for ${jobId}:`, err);
       });
     }, 0);

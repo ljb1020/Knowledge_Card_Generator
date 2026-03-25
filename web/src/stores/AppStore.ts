@@ -12,6 +12,8 @@ class AppStore {
   historyJobs: Job[] = [];
   errorMessage: string | null = null;
   isSaving = false;
+  selectedModelId: string = localStorage.getItem('selectedModelId') || 'minimax';
+  availableModels: Array<{ id: string; label: string; defaultModel: string }> = [];
 
   private pollGenerationTimer: ReturnType<typeof setTimeout> | null = null;
   private pollExportTimer: ReturnType<typeof setTimeout> | null = null;
@@ -34,6 +36,26 @@ class AppStore {
     } catch {
       this.setError('加载历史记录失败');
     }
+  }
+
+  async loadModels(): Promise<void> {
+    try {
+      const res = await fetch('/api/models');
+      if (!res.ok) return;
+      const data = await res.json();
+      this.availableModels = data.models ?? [];
+      // 如果当前选中的模型不在可用列表中，切到第一个
+      if (this.availableModels.length > 0 && !this.availableModels.some((m) => m.id === this.selectedModelId)) {
+        this.setModelId(this.availableModels[0].id);
+      }
+    } catch {
+      // 静默失败，模型列表为空时 UI 会隐藏下拉框
+    }
+  }
+
+  setModelId(modelId: string): void {
+    this.selectedModelId = modelId;
+    localStorage.setItem('selectedModelId', modelId);
   }
 
   async loadJob(id: string): Promise<void> {
@@ -84,7 +106,7 @@ class AppStore {
       const res = await fetch('/api/jobs/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, modelId: this.selectedModelId }),
       });
 
       if (!res.ok) {

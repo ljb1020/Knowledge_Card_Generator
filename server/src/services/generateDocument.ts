@@ -47,6 +47,8 @@ interface GenerateProgressUpdate {
 
 interface GenerateDocumentOptions {
   onProgress?: (update: GenerateProgressUpdate) => void | Promise<void>;
+  /** Provider ID to use (e.g. 'minimax', 'deepseek'). Defaults to 'minimax'. */
+  modelId?: string;
 }
 
 function getStageModel(stage: 'stage1' | 'stage2'): string | undefined {
@@ -289,7 +291,7 @@ export async function generateDocumentForTopicWithOptions(
           content: buildStage1Prompt(topic),
         },
       ],
-      { model: getStageModel('stage1'), temperature: 0.15, maxTokens: 2400 }
+      { model: getStageModel('stage1'), temperature: 0.15, maxTokens: 2400, providerId: options.modelId }
     );
 
     let stage1Validation = validateTutorialDraft(topic, stage1Draft);
@@ -307,7 +309,7 @@ export async function generateDocumentForTopicWithOptions(
             content: buildStage1RetryPrompt(topic, stage1Draft, stage1Validation.errorMessage),
           },
         ],
-        { model: getStageModel('stage1'), temperature: 0.2, maxTokens: 2400 }
+        { model: getStageModel('stage1'), temperature: 0.2, maxTokens: 2400, providerId: options.modelId }
       );
 
       stage1Validation = validateTutorialDraft(topic, stage1Draft);
@@ -338,7 +340,7 @@ export async function generateDocumentForTopicWithOptions(
           content: buildStage2Prompt(topic, parsedDraft),
         },
       ],
-      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 4000 }
+      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 4000, providerId: options.modelId }
     );
 
     const stage2Validation = parseAndValidateDocument(topic, parsedDraft, stage2Raw);
@@ -367,7 +369,7 @@ export async function generateDocumentForTopicWithOptions(
           content: buildStage2RetryPrompt(topic, parsedDraft, stage2Raw, stage2Validation.errorMessage),
         },
       ],
-      { model: getStageModel('stage2'), temperature: 0.1, maxTokens: 2600 }
+      { model: getStageModel('stage2'), temperature: 0.1, maxTokens: 2600, providerId: options.modelId }
     );
 
     const retriedStage2Validation = parseAndValidateDocument(topic, parsedDraft, stage2Raw);
@@ -400,7 +402,7 @@ export async function generateDocumentForTopicWithOptions(
           ),
         },
       ],
-      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 4000 }
+      { model: getStageModel('stage2'), temperature: 0.2, maxTokens: 4000, providerId: options.modelId }
     );
 
     const repairedValidation = parseAndValidateDocument(topic, parsedDraft, repairedStage2Raw);

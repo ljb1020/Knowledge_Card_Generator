@@ -50,6 +50,7 @@ export default observer(function LeftPanel() {
 
   useEffect(() => {
     appStore.loadHistoryJobs();
+    appStore.loadModels();
     return () => appStore.clearPollTimer();
   }, []);
 
@@ -108,7 +109,39 @@ export default observer(function LeftPanel() {
           className="w-full px-3 py-2.5 border border-slate-200/60 rounded-xl text-sm text-slate-800 bg-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 placeholder:text-slate-400 transition-all"
           onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
         />
-        <div className="flex gap-2 mt-3">
+        {appStore.availableModels.length > 1 && (
+          <div className="flex gap-2 mt-3">
+            <select
+              value={appStore.selectedModelId}
+              onChange={(e) => appStore.setModelId(e.target.value)}
+              className="flex-1 px-2 py-2 border border-slate-200/60 rounded-lg text-xs text-slate-600 bg-white/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 transition-all cursor-pointer"
+            >
+              {appStore.availableModels.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/models/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modelId: appStore.selectedModelId }),
+                  });
+                  const data = await res.json();
+                  alert(data.success ? `✅ ${data.message}` : `❌ ${data.message}`);
+                } catch {
+                  alert('❌ 测试失败');
+                }
+              }}
+              className="px-3 py-2 rounded-lg text-xs font-medium border border-black/5 text-slate-500 bg-white/50 hover:bg-white hover:shadow-sm transition-all active:scale-[0.98]"
+              title="测试当前模型连接是否有效"
+            >
+              测试模型
+            </button>
+          </div>
+        )}
+        <div className="flex gap-2 mt-2">
           <button
             onClick={handleGenerate}
             disabled={appStore.isGenerating}

@@ -30,6 +30,31 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+// Available LLM models
+app.get('/api/models', async (_req, res) => {
+  try {
+    const { getAvailableProviders } = await import('./llm/minimaxClient.js');
+    res.json({ models: getAvailableProviders() });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load models' });
+  }
+});
+
+// Test model connectivity
+app.post('/api/models/test', async (req, res) => {
+  try {
+    const providerId = typeof req.body?.modelId === 'string' ? req.body.modelId : undefined;
+    const { createChatCompletion } = await import('./llm/minimaxClient.js');
+    await createChatCompletion(
+      [{ role: 'user', content: '请回复"OK"' }],
+      { providerId, maxTokens: 10, temperature: 0 }
+    );
+    res.json({ success: true, message: '连接成功' });
+  } catch (err) {
+    res.json({ success: false, message: err instanceof Error ? err.message : '连接失败' });
+  }
+});
+
 // 小红书登录态检测
 app.get('/api/xhs/check-auth', async (_req, res) => {
   try {
