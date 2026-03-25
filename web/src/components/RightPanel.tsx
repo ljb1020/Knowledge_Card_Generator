@@ -29,7 +29,7 @@ export default observer(function RightPanel() {
     <section className="flex-1 glass-panel rounded-2xl flex flex-col p-2 min-w-0 overflow-hidden">
       <div className="flex-1 overflow-y-auto p-4 pr-3">
         <div className="mb-4">
-          <h2 className="text-sm font-semibold text-slate-500">实时预览</h2>
+          <h2 className="section-title">实时预览</h2>
         </div>
       <div className="flex flex-col items-center gap-4">
         {renderItems.map((item) => (

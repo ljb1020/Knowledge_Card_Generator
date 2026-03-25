@@ -26,7 +26,7 @@ export default observer(function CenterPanel() {
     <main className="flex-1 glass-panel rounded-2xl flex flex-col p-2 min-w-0 overflow-hidden">
       <div className="flex-1 overflow-y-auto p-4 pr-3">
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-600">
+          <h2 className="section-title">
             文档编辑 · 共 {draft.cards.length} 个逻辑卡位
           </h2>
           <div className="text-xs text-slate-400 bg-white/60 px-3 py-1 rounded-full">
@@ -88,7 +88,7 @@ function CoverEditor({ card, index }: { card: CoverCard; index: number }) {
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-xs font-medium text-slate-500 block mb-1.5">标题</label>
+        <label className="label-text">标题</label>
         <AutoResizeTextarea
           value={card.title}
           maxLength={28}
@@ -99,7 +99,7 @@ function CoverEditor({ card, index }: { card: CoverCard; index: number }) {
         <div className="text-[11px] text-slate-400 text-right mt-1">{card.title.length}/28</div>
       </div>
       <div>
-        <label className="text-xs font-medium text-slate-500 block mb-1.5">副标题</label>
+        <label className="label-text">副标题</label>
         <AutoResizeTextarea
           value={card.subtitle}
           maxLength={90}
@@ -117,7 +117,7 @@ function BulletEditor({ card, index }: { card: BulletCard; index: number }) {
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-xs font-medium text-slate-500 block mb-1.5">标题</label>
+        <label className="label-text">标题</label>
         <AutoResizeTextarea
           value={card.title}
           maxLength={28}
@@ -128,7 +128,7 @@ function BulletEditor({ card, index }: { card: BulletCard; index: number }) {
         <div className="text-[11px] text-slate-400 text-right mt-1">{card.title.length}/28</div>
       </div>
       <div>
-        <label className="text-xs font-medium text-slate-500 block mb-1.5">要点列表</label>
+        <label className="label-text">要点列表</label>
         <div className="space-y-2">
           {card.bullets.map((bullet, bulletIndex) => (
             <div key={bulletIndex} className="flex gap-2">

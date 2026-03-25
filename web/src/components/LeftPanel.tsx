@@ -70,7 +70,7 @@ const GeneratorSection = observer(() => {
   return (
     <div className="bg-white/40 border border-white/60 rounded-2xl p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-800">新建提取</h2>
+        <h2 className="section-title">新建提取</h2>
         {appStore.availableModels.length > 1 && (
           <select
             value={appStore.selectedModelId}
@@ -88,7 +88,7 @@ const GeneratorSection = observer(() => {
         ref={inputRef}
         type="text"
         placeholder="输入前端知识点，如：闭包、虚拟 DOM"
-        className="w-full px-3 py-2.5 border border-slate-200/60 rounded-xl text-sm text-slate-800 bg-white/80 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-300 placeholder:text-slate-400 transition-all shadow-inner"
+        className="input-base text-slate-800 shadow-inner"
         onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
       />
 
@@ -96,15 +96,14 @@ const GeneratorSection = observer(() => {
         <button
           onClick={handleGenerate}
           disabled={appStore.isGenerating}
-          className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          className={`btn-primary flex-1 ${
             appStore.isGenerating
-              ? 'bg-black/5 text-slate-400 cursor-not-allowed'
-              : 'bg-[#007AFF] text-white hover:bg-[#006ee6] shadow-sm active:scale-[0.98]'
+              ? 'btn-disabled'
+              : 'bg-slate-800 text-white hover:bg-slate-900'
           }`}
         >
-          {appStore.isGenerating ? '生成中...' : '生成图文卡片'}
+          {appStore.isGenerating ? '生成中...' : '生成卡片'}
         </button>
-        <div className="flex flex-col gap-1.5 justify-center w-[84px]">
           {appStore.availableModels.length > 1 && (
             <button
               onClick={async () => {
@@ -120,7 +119,7 @@ const GeneratorSection = observer(() => {
                   alert('❌ 测试失败');
                 }
               }}
-              className="px-2 py-1 rounded-md text-[10px] font-medium border border-black/5 text-slate-500 bg-white/60 hover:bg-white hover:shadow-sm transition-all"
+              className="btn-ghost"
               title="测试当前模型连接是否有效"
             >
               测模型
@@ -128,12 +127,11 @@ const GeneratorSection = observer(() => {
           )}
           <button
             onClick={handleCheckXhsAuth}
-            className="px-2 py-1 rounded-md text-[10px] font-medium border border-black/5 text-slate-500 bg-white/60 hover:bg-white hover:shadow-sm transition-all"
+            className="btn-ghost"
             title="测试小红书登录态是否有效"
           >
             测账号
           </button>
-        </div>
       </div>
     </div>
   );
@@ -153,7 +151,7 @@ const HistorySection = observer(() => {
   return (
     <div className="flex-1 min-h-0 bg-white/40 border border-white/60 rounded-2xl flex flex-col shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
       <div className="px-4 py-3 border-b border-white/40 flex items-center justify-between">
-        <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">历史记录</h2>
+        <h2 className="section-title">历史记录</h2>
         <span className="text-[11px] bg-white/60 px-2 py-0.5 rounded-full text-slate-400 border border-slate-100">{appStore.historyJobs.length}</span>
       </div>
       
@@ -304,7 +302,7 @@ const ActionSection = observer(() => {
   return (
     <div className="bg-white/40 border border-white/60 rounded-2xl p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex flex-col gap-3">
       <div>
-        <div className="text-xs font-bold text-slate-800 line-clamp-2 leading-relaxed">
+        <div className="section-title line-clamp-2 leading-relaxed">
           {appStore.currentJob.topic}
         </div>
         
@@ -314,7 +312,7 @@ const ActionSection = observer(() => {
           {(appStore.currentJob.status === 'failed' || appStore.currentJob.status === 'ready_with_warnings') && appStore.currentJob.errorMessage && (
             <button
               onClick={() => setIsModalOpen(true)}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium transition-colors ${
+              className={`btn-secondary flex items-center gap-1 border ${
                 appStore.currentJob.status === 'failed'
                   ? 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100 hover:border-red-300'
                   : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:border-amber-300'
@@ -342,35 +340,35 @@ const ActionSection = observer(() => {
         <button
           onClick={handleSave}
           disabled={!appStore.isDirty || appStore.isSaving}
-          className={`flex-[1.5] px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+          className={`flex-1 btn-primary ${
             appStore.isDirty && !appStore.isSaving
-              ? 'bg-[#007AFF] text-white hover:bg-[#006ee6] shadow-sm active:scale-[0.98]'
-              : 'bg-black/5 text-slate-400 cursor-not-allowed'
+              ? 'bg-[#007AFF] text-white hover:bg-[#006ee6]'
+              : 'btn-disabled'
           }`}
         >
-          {appStore.isSaving ? '保存中...' : '保存修改'}
+          {appStore.isSaving ? '保存中...' : '保存'}
         </button>
         <button
           onClick={handleExport}
           disabled={!appStore.canExport || appStore.isExporting || appStore.isGenerating}
-          className={`flex-[1.5] px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+          className={`flex-1 btn-primary ${
             appStore.canExport && !appStore.isExporting && !appStore.isGenerating
-              ? 'bg-slate-800 text-white hover:bg-slate-900 shadow-sm active:scale-[0.98]'
-              : 'bg-black/5 text-slate-400 cursor-not-allowed'
+              ? 'bg-slate-800 text-white hover:bg-slate-900'
+              : 'btn-disabled'
           }`}
         >
-          {appStore.isExporting ? '导出中...' : '导出图片'}
+          {appStore.isExporting ? '导出中...' : '导出'}
         </button>
         {appStore.canPublishToXhs && (
           <button
             onClick={handlePublishToXhs}
             disabled={appStore.isPublishing}
-            className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+            className={`flex-1 btn-primary ${
               appStore.isPublishing
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                ? 'btn-disabled'
                 : appStore.currentJob.status === 'published'
-                ? 'bg-white text-[#ff2442] border border-[#ff2442]/30 hover:bg-red-50 shadow-sm active:scale-[0.98]'
-                : 'bg-[#ff2442] hover:bg-[#e01934] text-white shadow-sm active:scale-[0.98]'
+                ? 'bg-white text-[#ff2442] border border-[#ff2442]/30 hover:bg-red-50'
+                : 'bg-[#ff2442] hover:bg-[#e01934] text-white'
             }`}
             title="一键起草到小红书"
           >
@@ -435,11 +433,7 @@ export default observer(function LeftPanel() {
     <aside className="w-[340px] min-w-[340px] flex flex-col h-full gap-4 pb-2 pr-1">
       <div className="px-1 flex items-center justify-between pt-1">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-inner">
-            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
+
           <h1 className="text-base font-bold text-slate-800 tracking-tight">知识卡片工厂</h1>
         </div>
       </div>

@@ -170,9 +170,41 @@ Job 持有各阶段产物：`progressMessage`, `stage1Draft`, `stage2Raw`, `docu
 - **逻辑页展开机制**：虽然 JSON 数据只有 4 个卡，但由于每页 bullet 大于等于 4 条会显得拥挤，前端实现了基于 `lib/expandCards.ts` 的自动分页逻辑：
   > 任意 bullet 数 `≥ 4`，会被拆解为两张独立的渲染展示页与导出图片（第一页放前 3 条，其余顺移）。这导致“导出图片总是 `≥ 4` 的”。
 
-### 13. 系统演进的记录
+## 10. UI 设计系统
 
-文档和旧版的几个显著核心差别：
-1. **纯粹的 Playwright Node 层发布器**：内置在系统内部的自动上架工具。
-2. **样式风格巨变**：原设计的常规“Aceternity 拟态科技”现已彻底转变为带有系统状态码日志、绿色光标排版的“Cyber Terminal（赛博终端设备）”视觉设计。框架变为 TailwindCSS + MobX。
-3. **UI 操作逻辑强化**：文本域拥有 AutoResize，主工作台采用极致的 Apple 毛玻璃半透明特效与大圆角控制体验。包含小红书 auth 检测小按钮等。
+前端 UI 遵循统一的设计 Token 体系，详见 `docs/UI_SPEC.md`。
+
+### 10.1 Token 唯一源泉
+
+所有尺寸、圆角、字号、颜色等视觉规格，以 `web/src/styles/globals.css` 中定义的工具类为准：
+
+- `section-title` — 区块标题
+- `btn-primary` / `btn-secondary` / `btn-ghost` — 按钮变体
+- `input-base` — 输入框
+- `label-text` — 表单标签
+
+### 10.2 开发约束
+
+- **禁止在组件内硬编码 `py` / `rounded` / `text-sm` 等尺寸样式**，必须引用工具类
+- **按钮只追加颜色差异**，不重写基础属性
+- **新增 Token 先改 `globals.css`**，再在组件中引用
+- **UI 改动需同步更新 `UI_SPEC.md`**
+
+### 10.3 视觉风格隔离
+
+- **工作台**（LeftPanel、CenterPanel）：Apple 毛玻璃浅色风
+- **卡片预览**（CoverCardView、BulletCardView）：赛博终端深色风
+- 两者风格严格隔离，互不侵入
+
+## 11. 文档同步规则
+
+> **任何系统改动（功能、架构、UI），必须同步更新对应文档。**
+
+| 改动类型 | 需更新的文档 |
+|---------|------------|
+| API / 数据模型 / 服务端逻辑 | `ARCHITECTURE.md` |
+| UI 组件 / 视觉风格 / 设计 Token | `UI_SPEC.md` + `ARCHITECTURE.md` |
+| 新增功能模块 | `ARCHITECTURE.md` |
+| 生成 Prompt / 校验规则 | `ARCHITECTURE.md` |
+
+本文档必须始终与代码实现保持一致，不允许出现"文档描述与实际代码不符"的情况。
