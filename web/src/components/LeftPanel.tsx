@@ -209,8 +209,77 @@ const HistorySection = observer(() => {
   );
 });
 
+const PublishModal = observer(({ onClose }: { onClose: () => void }) => {
+  const job = appStore.currentJob;
+  if (!job) return null;
+
+  const [title, setTitle] = useState(`前端面试卡-${job.topic}`);
+  const [content, setContent] = useState(`前端面试遇到面试官问${job.topic}，这样回答才能拿满分`);
+
+  async function handleConfirm() {
+    const ok = await appStore.publishToXhs(title, content);
+    if (ok) {
+      alert('✅ 已起草到小红书');
+      onClose();
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-lg w-full m-4 border border-slate-200/60" onClick={e => e.stopPropagation()}>
+        <div className="font-bold text-lg text-slate-800 mb-5 flex items-center gap-2">
+          <svg className="w-6 h-6 text-[#ff2442]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          推送到小红书草稿箱
+        </div>
+        
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">笔记标题</label>
+            <input 
+              type="text" 
+              value={title} 
+              onChange={e => setTitle(e.target.value)}
+              placeholder="请输入起草标题..."
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-red-400 focus:bg-white focus:ring-1 focus:ring-red-400 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">笔记正文</label>
+            <textarea 
+              value={content} 
+              onChange={e => setContent(e.target.value)}
+              placeholder="请输入正文..."
+              rows={4}
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-red-400 focus:bg-white focus:ring-1 focus:ring-red-400 transition-all custom-scrollbar resize-none"
+            />
+          </div>
+        </div>
+        
+        <div className="flex justify-end gap-2">
+          <button 
+            onClick={onClose}
+            className="px-5 py-2 hover:bg-slate-100 text-slate-600 text-sm font-medium rounded-xl transition-all active:scale-95"
+          >
+            取消
+          </button>
+          <button 
+            onClick={handleConfirm}
+            disabled={appStore.isPublishing}
+            className={`px-5 py-2 text-white text-sm font-medium rounded-xl shadow-sm transition-all active:scale-95 flex items-center gap-1.5 ${appStore.isPublishing ? 'bg-red-400 cursor-not-allowed' : 'bg-[#ff2442] hover:bg-[#e01934]'}`}
+          >
+            {appStore.isPublishing ? '发布中...' : '确认推送'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const ActionSection = observer(() => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
   async function handleSave() {
     await appStore.saveDocument();
@@ -221,10 +290,7 @@ const ActionSection = observer(() => {
   }
 
   async function handlePublishToXhs() {
-    const ok = await appStore.publishToXhs();
-    if (ok) {
-      alert('已发布到小红书');
-    }
+    setIsPublishModalOpen(true);
   }
 
   if (!appStore.currentJob) {
@@ -302,11 +368,17 @@ const ActionSection = observer(() => {
             className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
               appStore.isPublishing
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : appStore.currentJob.status === 'published'
+                ? 'bg-white text-[#ff2442] border border-[#ff2442]/30 hover:bg-red-50 shadow-sm active:scale-[0.98]'
                 : 'bg-[#ff2442] hover:bg-[#e01934] text-white shadow-sm active:scale-[0.98]'
             }`}
             title="一键起草到小红书"
           >
-            发布
+            {appStore.isPublishing 
+              ? '发布中...' 
+              : appStore.currentJob.status === 'published'
+              ? '重新发布'
+              : '发布'}
           </button>
         )}
       </div>
@@ -345,6 +417,9 @@ const ActionSection = observer(() => {
           </div>
         </div>
       )}
+
+      {/* 发布配置弹窗 */}
+      {isPublishModalOpen && <PublishModal onClose={() => setIsPublishModalOpen(false)} />}
     </div>
   );
 });

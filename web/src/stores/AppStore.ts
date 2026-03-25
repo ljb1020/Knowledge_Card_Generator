@@ -152,7 +152,7 @@ class AppStore {
     }
   }
 
-  async publishToXhs(): Promise<boolean> {
+  async publishToXhs(customTitle?: string, customContent?: string): Promise<boolean> {
     if (!this.currentJobId) return false;
     this.isPublishing = true;
     this.clearError();
@@ -160,6 +160,8 @@ class AppStore {
     try {
       const res = await fetch(`/api/jobs/${this.currentJobId}/publish-draft`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customTitle, customContent }),
       });
 
       const data = await res.json();
@@ -347,7 +349,7 @@ class AppStore {
 
   get canPublishToXhs(): boolean {
     return (
-      this.currentJob?.status === 'done' &&
+      (this.currentJob?.status === 'done' || this.currentJob?.status === 'published') &&
       (this.currentJob?.imagePaths?.length ?? 0) > 0
     );
   }

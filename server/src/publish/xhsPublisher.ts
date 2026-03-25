@@ -129,20 +129,54 @@ export async function publishDraft(
     // 4. 填写标题
     console.info('[xhs-publish] 正在填写标题...');
     try {
-      const titleInput = page.locator('[placeholder*="标题"], [placeholder*="填写标题"]').first();
+      // 标题是一个普通 <input class="d-text"> 位于 div.c-input_inner 内
+      const titleInput = page.locator('div.c-input_inner input.d-text, input[placeholder*="标题"]').first();
       await titleInput.waitFor({ state: 'visible', timeout: 5000 });
       await titleInput.click();
       await page.waitForTimeout(300);
       await titleInput.fill(title);
     } catch {
-      const titleEditable = page.locator('[contenteditable="true"]').first();
-      await titleEditable.click();
-      await titleEditable.fill(title);
+      // Fallback：用 placeholder 文本精确定位
+      const titleInput = page.locator('input[placeholder*="填写标题"]').first();
+      await titleInput.click();
+      await titleInput.fill(title);
     }
     await page.waitForTimeout(500);
 
-    // 5. 填写正文（contenteditable 富文本，用 keyboard.type）
-    console.info('[xhs-publish] 正在填写正文...');
+    // 5. 插入话题模板 "前端"
+    console.info('[xhs-publish] 正在插入话题模板 "前端"...');
+    try {
+      // 5.1 先尝试点击底部工具栏的“话题”按钮，展开内部菜单
+      try {
+        const arrowBtn = page.locator('button.topicTemplate').first();
+        await arrowBtn.waitFor({ state: 'visible', timeout: 3000 });
+        await arrowBtn.click();
+        await page.waitForTimeout(1000);
+      } catch (e) {
+        console.warn('[xhs-publish] topicTemplate arrow not found, skipping...');
+      }
+
+      // 5.2 寻找并点击“使用/管理话题模板”
+      const manageBtn = page.locator('div.topicTemplatePopover').filter({ hasText: '使用/管理话题模版' }).first();
+      await manageBtn.waitFor({ state: 'visible', timeout: 3000 });
+      await manageBtn.click();
+      console.info('[xhs-publish] 已点击使用/管理话题模版');
+      await page.waitForTimeout(1000);
+
+      // 5.3 在模版弹窗中找到名为"前端"的 card，点击它的"应用"按钮
+      const card = page.locator('div.card').filter({ hasText: '前端' }).first();
+      const applyBtn = card.getByRole('button', { name: '应用' }).first();
+      await applyBtn.waitFor({ state: 'visible', timeout: 5000 });
+      await applyBtn.click();
+      await page.waitForTimeout(1000);
+      
+      console.info('[xhs-publish] 话题模板 "前端" 应用成功');
+    } catch (e) {
+      console.warn('[xhs-publish] 插入话题模板失败 (可能是未找到或UI变更)，跳过...', e);
+    }
+
+    // 6. 填写正文（contenteditable 富文本，用 keyboard.type 追加）
+    console.info('[xhs-publish] 正在追加填写正文...');
     try {
       const contentArea = page.locator(
         '[placeholder*="正文"], [placeholder*="描述"], [placeholder*="分享"]'

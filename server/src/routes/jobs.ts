@@ -288,9 +288,11 @@ router.post('/:id/publish-draft', async (req, res) => {
       return path.join(storageDir, relative);
     });
 
-    // 格式化标题和正文
-    const title = formatXhsTitle(job.topic);
-    const content = formatXhsContent(job.documentJson);
+    const { customTitle, customContent } = req.body || {};
+
+    // 格式化标题和正文（优先使用前端传来的自定义内容）
+    const title = customTitle || formatXhsTitle(job.topic);
+    const content = customContent || formatXhsContent(job.documentJson);
 
     // 执行发布（登录检查也在 publishDraft 内部处理）
     const result = await publishDraft(localPaths, title, content);
