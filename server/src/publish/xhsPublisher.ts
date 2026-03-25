@@ -1,22 +1,18 @@
 import fs from 'fs';
 import path from 'path';
 import { chromium, type Page } from 'playwright';
-import { getAuthFilePath, DEBUG_DIR } from './xhsAuth.js';
+import { getAuthFilePath, DEBUG_DIR, waitForLoginOnPage, saveAuth } from './xhsAuth.js';
+import { ensureDir } from '../utils/fs.js';
 
 // 直接带参数打开图文上传 tab
 const XHS_PUBLISH_URL = 'https://creator.xiaohongshu.com/publish/publish?from=tab_switch&target=image';
-const LOGIN_TIMEOUT = parseInt(process.env.XHS_LOGIN_TIMEOUT ?? '120000', 10);
 
 export interface PublishResult {
   success: boolean;
   message: string;
 }
 
-function ensureDir(dir: string) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
+
 
 async function saveDebugScreenshot(page: Page, name: string) {
   try {
@@ -74,26 +70,12 @@ export async function publishDraft(
 
     // 2. 检查是否需要登录（被重定向到登录页）
     if (page.url().includes('/login')) {
-      console.info('[xhs-publish] 需要登录，请在弹出的浏览器窗口中扫码...');
-
-      // 在同一个浏览器里等用户扫码登录
-      try {
-        await page.waitForURL(
-          (url) => !url.toString().includes('/login'),
-          { timeout: LOGIN_TIMEOUT }
-        );
-      } catch {
+      const loginResult = await waitForLoginOnPage(page, context);
+      if (!loginResult.success) {
         await saveDebugScreenshot(page, 'login-timeout');
         await context.close();
-        return { success: false, message: `登录超时（${LOGIN_TIMEOUT / 1000}s），请重试` };
+        return { success: false, message: loginResult.message };
       }
-
-      await page.waitForTimeout(2000);
-
-      // 保存 cookie 供下次使用
-      ensureDir(path.dirname(authFile));
-      await context.storageState({ path: authFile });
-      console.info('[xhs-publish] 登录成功，cookie 已保存');
 
       // 登录成功后重新导航到图文上传页
       await page.goto(XHS_PUBLISH_URL, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -199,8 +181,7 @@ export async function publishDraft(
     await saveDebugScreenshot(page, 'after-publish');
 
     // 发布成功后再次保存最新 cookie
-    ensureDir(path.dirname(authFile));
-    await context.storageState({ path: authFile });
+    await saveAuth(context);
 
     console.info('[xhs-publish] 发布完成');
     await context.close();

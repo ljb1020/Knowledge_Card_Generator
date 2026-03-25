@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { chromium, type BrowserContext } from 'playwright';
 import { resolveProjectPath } from '../utils/loadEnv.js';
+import { ensureDir } from '../utils/fs.js';
 
 const STORAGE_DIR = resolveProjectPath(process.env.APP_STORAGE_DIR ?? './storage');
 const AUTH_FILE = resolveProjectPath(process.env.XHS_AUTH_FILE ?? './storage/xhs-auth.json');
@@ -16,11 +17,7 @@ export interface AuthResult {
   message: string;
 }
 
-function ensureDir(dir: string) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
+
 
 /**
  * 检查已保存的登录态是否仍然有效。
@@ -123,10 +120,40 @@ export async function ensureXhsAuth(): Promise<AuthResult> {
 }
 
 /**
+ * 在已有 page 上等待用户登录完成（适用于 publisher 在同一会话中处理登录）。
+ * 登录成功后自动保存 cookie。
+ */
+export async function waitForLoginOnPage(page: import('playwright').Page, context: BrowserContext): Promise<AuthResult> {
+  console.info('[xhs-auth] 需要登录，请在弹出的浏览器窗口中扫码...');
+  try {
+    await page.waitForURL(
+      (url) => !url.toString().includes('/login'),
+      { timeout: LOGIN_TIMEOUT }
+    );
+  } catch {
+    return { success: false, message: `登录超时（${LOGIN_TIMEOUT / 1000}s），请重试` };
+  }
+
+  await page.waitForTimeout(2000);
+  ensureDir(path.dirname(AUTH_FILE));
+  await context.storageState({ path: AUTH_FILE });
+  console.info('[xhs-auth] 登录成功，cookie 已保存');
+  return { success: true, message: '登录成功' };
+}
+
+/**
+ * 保存最新的 storageState（供发布成功后刷新 cookie）。
+ */
+export async function saveAuth(context: BrowserContext): Promise<void> {
+  ensureDir(path.dirname(AUTH_FILE));
+  await context.storageState({ path: AUTH_FILE });
+}
+
+/**
  * 获取 storageState 文件路径（供 publisher 使用）。
  */
 export function getAuthFilePath(): string {
   return AUTH_FILE;
 }
 
-export { DEBUG_DIR };
+export { DEBUG_DIR, LOGIN_TIMEOUT };

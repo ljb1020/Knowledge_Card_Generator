@@ -1,12 +1,12 @@
 import type Database from 'better-sqlite3';
 import type { CardDocument, Job } from 'shared';
 
-function normalizeText(value: unknown): string {
+function trimToString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
 function normalizeBulletList(value: unknown, fallback: string, max: number): string[] {
-  const bullets = Array.isArray(value) ? value.map(normalizeText).filter(Boolean).slice(0, max) : [];
+  const bullets = Array.isArray(value) ? value.map((v) => trimToString(v)).filter(Boolean).slice(0, max) : [];
   while (bullets.length < 3) {
     bullets.push(fallback);
   }
@@ -80,7 +80,7 @@ function normalizeLegacyDocument(topic: string, rawValue: unknown): CardDocument
   ) as Array<{ id?: unknown; title?: unknown; bullets?: unknown }>;
 
   const findBullet = (patterns: RegExp[], fallbackIndex: number) =>
-    bulletCards.find((card) => patterns.some((pattern) => pattern.test(normalizeText(card.title)))) ??
+    bulletCards.find((card) => patterns.some((pattern) => pattern.test(trimToString(card.title)))) ??
     bulletCards[fallbackIndex];
 
   const answerCard = findBullet([/回答|答题|高分/], Math.max(bulletCards.length - 1, 0));
@@ -92,26 +92,26 @@ function normalizeLegacyDocument(topic: string, rawValue: unknown): CardDocument
     styleVersion: 'frontend-card-v1',
     cards: [
       {
-        id: normalizeText(cover?.id) || 'cover-1',
+        id: trimToString(cover?.id) || 'cover-1',
         type: 'cover',
-        title: normalizeText(cover?.title) || topic,
-        subtitle: normalizeText(cover?.subtitle) || `${topic} 的定义、价值和常见面试问法概览`,
+        title: trimToString(cover?.title) || topic,
+        subtitle: trimToString(cover?.subtitle) || `${topic} 的定义、价值和常见面试问法概览`,
         tag: '前端面试卡',
       },
       {
-        id: normalizeText(answerCard?.id) || 'bullet-1',
+        id: trimToString(answerCard?.id) || 'bullet-1',
         type: 'bullet',
         title: '完整面试回答',
         bullets: normalizeBulletList(answerCard?.bullets, '请重新生成当前知识点，以得到新的完整面试回答。', 6),
       },
       {
-        id: normalizeText(followUpCard?.id) || 'bullet-2',
+        id: trimToString(followUpCard?.id) || 'bullet-2',
         type: 'bullet',
         title: '高频追问',
         bullets: normalizeBulletList(followUpCard?.bullets, '请重新生成当前知识点，以得到新的高频追问。', 5),
       },
       {
-        id: normalizeText(pitfallCard?.id) || 'bullet-3',
+        id: trimToString(pitfallCard?.id) || 'bullet-3',
         type: 'bullet',
         title: '易错点',
         bullets: normalizeBulletList(pitfallCard?.bullets, '请重新生成当前知识点，以得到新的易错点。', 5),

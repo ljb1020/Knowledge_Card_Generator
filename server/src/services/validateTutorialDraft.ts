@@ -1,17 +1,13 @@
 import { parseTutorialDraft } from './parseTutorialDraft.js';
 import type { ParsedTutorialDraft } from './tutorialDraft.js';
-
-interface RangeCheck {
-  hardMin: number;
-  hardMax: number;
-  idealMin: number;
-  idealMax: number;
-}
-
-interface ValidationCollector {
-  hardErrors: string[];
-  warnings: string[];
-}
+import {
+  type ValidationCollector,
+  ANSWER_RANGE,
+  FOLLOW_UP_RANGE,
+  PITFALL_RANGE,
+  pushRangeIssue,
+  pushCountIssue,
+} from './validationShared.js';
 
 export type TutorialDraftValidationResult =
   | {
@@ -23,27 +19,6 @@ export type TutorialDraftValidationResult =
       success: false;
       errorMessage: string;
     };
-
-const ANSWER_RANGE: RangeCheck = {
-  hardMin: 240,
-  hardMax: 1000,
-  idealMin: 300,
-  idealMax: 800,
-};
-
-const FOLLOW_UP_RANGE: RangeCheck = {
-  hardMin: 160,
-  hardMax: 800,
-  idealMin: 200,
-  idealMax: 600,
-};
-
-const PITFALL_RANGE: RangeCheck = {
-  hardMin: 160,
-  hardMax: 800,
-  idealMin: 200,
-  idealMax: 600,
-};
 
 function stripMarkdownCodeFences(value: string): string {
   return value.replace(/```[a-zA-Z0-9_-]*\n?/g, '').replace(/```/g, '');
@@ -128,50 +103,7 @@ function isTopicAligned(topic: string, parsedDraft: ParsedTutorialDraft, draft: 
   );
 }
 
-function pushRangeIssue(
-  collector: ValidationCollector,
-  stageLabel: string,
-  partLabel: string,
-  actualLength: number,
-  range: RangeCheck
-): void {
-  if (actualLength < range.hardMin || actualLength > range.hardMax) {
-    collector.hardErrors.push(
-      `${stageLabel} / ${partLabel} / 总字数 ${actualLength} 超出可接受范围 ${range.hardMin}~${range.hardMax}`
-    );
-    return;
-  }
 
-  if (actualLength < range.idealMin || actualLength > range.idealMax) {
-    collector.warnings.push(
-      `${stageLabel} / ${partLabel} / 总字数 ${actualLength} 偏离理想范围 ${range.idealMin}~${range.idealMax}`
-    );
-  }
-}
-
-function pushCountIssue(
-  collector: ValidationCollector,
-  stageLabel: string,
-  partLabel: string,
-  actualCount: number,
-  idealMin: number,
-  idealMax: number,
-  hardMin: number,
-  hardMax: number
-): void {
-  if (actualCount < hardMin || actualCount > hardMax) {
-    collector.hardErrors.push(
-      `${stageLabel} / ${partLabel} / 条数 ${actualCount} 超出可接受范围 ${hardMin}~${hardMax}`
-    );
-    return;
-  }
-
-  if (actualCount < idealMin || actualCount > idealMax) {
-    collector.warnings.push(
-      `${stageLabel} / ${partLabel} / 条数 ${actualCount} 偏离理想范围 ${idealMin}~${idealMax}`
-    );
-  }
-}
 
 export function validateTutorialDraft(topic: string, draft: string): TutorialDraftValidationResult {
   const trimmed = draft.trim();

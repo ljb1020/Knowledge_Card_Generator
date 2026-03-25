@@ -262,11 +262,8 @@ class AppStore {
     }
   }
 
-  deleteCard(_cardIndex: number) {}
 
-  addCard(_afterIndex: number) {}
 
-  moveCard(_cardIndex: number, _direction: 'up' | 'down') {}
 
   setGenerating(val: boolean) {
     this.isGenerating = val;

@@ -56,19 +56,19 @@ const CARD_JSON_SKELETON = JSON.stringify(
       {
         id: 'bullet-1',
         type: 'bullet',
-        title: '高频追问',
+        title: '完整面试回答',
         bullets: ['string', 'string', 'string'],
       },
       {
         id: 'bullet-2',
         type: 'bullet',
-        title: '易错点',
+        title: '高频追问',
         bullets: ['string', 'string', 'string'],
       },
       {
         id: 'bullet-3',
         type: 'bullet',
-        title: 'string',
+        title: '易错点',
         bullets: ['string', 'string', 'string'],
       },
     ],

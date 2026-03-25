@@ -36,9 +36,6 @@ db.exec(`
   );
 `);
 
-const jobColumns = db.prepare(`PRAGMA table_info(jobs)`).all() as Array<{ name: string }>;
-if (!jobColumns.some((column) => column.name === 'progress_message')) {
-  db.exec(`ALTER TABLE jobs ADD COLUMN progress_message TEXT`);
-}
 
 export default db;
+
