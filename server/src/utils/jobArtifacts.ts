@@ -22,7 +22,7 @@ export function sanitizeTopicSegment(topic: string): string {
   return truncateCodePoints(normalized || 'untitled', MAX_TOPIC_SEGMENT_LENGTH);
 }
 
-export function formatLegacyTimestampFolderName(createdAt: string): string {
+export function formatTimestampPrefix(createdAt: string): string {
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) {
     throw new Error(`Invalid job createdAt timestamp: ${createdAt}`);
@@ -40,27 +40,15 @@ export function formatLegacyTimestampFolderName(createdAt: string): string {
 }
 
 export function formatJobFolderName(createdAt: string, topic: string): string {
-  return `${formatLegacyTimestampFolderName(createdAt)}_${sanitizeTopicSegment(topic)}`;
+  return `${formatTimestampPrefix(createdAt)}_${sanitizeTopicSegment(topic)}`;
 }
 
 export function getJobArtifactsDir(createdAt: string, topic: string): string {
   return path.join(STORAGE_DIR, 'jobs', formatJobFolderName(createdAt, topic));
 }
 
-export function getLegacyTimestampJobArtifactsDir(createdAt: string): string {
-  return path.join(STORAGE_DIR, 'jobs', formatLegacyTimestampFolderName(createdAt));
-}
-
-export function getLegacyTimestampImagesDir(createdAt: string): string {
-  return path.join(getLegacyTimestampJobArtifactsDir(createdAt), 'images');
-}
-
 export function getPublicImagePath(createdAt: string, topic: string, filename: string): string {
   return `storage/jobs/${formatJobFolderName(createdAt, topic)}/${filename}`;
-}
-
-export function getLegacyJobArtifactsDir(jobId: string): string {
-  return path.join(STORAGE_DIR, 'jobs', jobId);
 }
 
 export function extractArtifactsDirFromImagePath(imagePath: string): string | null {

@@ -22,9 +22,6 @@ import { resolveProjectPath } from '../utils/loadEnv.js';
 import {
   extractArtifactsDirFromImagePath,
   getJobArtifactsDir,
-  getLegacyJobArtifactsDir,
-  getLegacyTimestampImagesDir,
-  getLegacyTimestampJobArtifactsDir,
 } from '../utils/jobArtifacts.js';
 
 const router = Router();
@@ -72,22 +69,29 @@ async function runGenerationJob(db: Database.Database, jobId: string, topic: str
 }
 
 function deleteJobArtifacts(job: Pick<Job, 'id' | 'topic' | 'createdAt' | 'imagePaths'>): void {
+  // 核心原则：以目前标准化的 `${timestamp}_${topic}` 作为文件夹来源
   const artifactDirs = new Set<string>([
-    getLegacyJobArtifactsDir(job.id),
     getJobArtifactsDir(job.createdAt, job.topic),
-    getLegacyTimestampJobArtifactsDir(job.createdAt),
-    getLegacyTimestampImagesDir(job.createdAt),
   ]);
 
-  for (const imagePath of job.imagePaths) {
+  // 双重保险：根据存放在数据库里的图片路径反查出真实文件夹（防误杀/改名遗留）
+  for (const imagePath of job.imagePaths || []) {
     const imageDir = extractArtifactsDirFromImagePath(imagePath);
     if (imageDir) {
       artifactDirs.add(imageDir);
     }
   }
 
+  // 迭代删除
   for (const artifactDir of artifactDirs) {
-    fs.rmSync(artifactDir, { recursive: true, force: true });
+    try {
+      fs.rmSync(artifactDir, { recursive: true, force: true });
+    } catch (err: any) {
+      if (err.code === 'EBUSY' || err.code === 'EPERM') {
+        throw new Error(`请先关闭正在查看该图片的软件或文件夹 (${artifactDir})，再执行删除操作。`);
+      }
+      throw err;
+    }
   }
 }
 
