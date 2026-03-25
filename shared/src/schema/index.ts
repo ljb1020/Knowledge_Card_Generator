@@ -14,7 +14,7 @@ export const BulletCardSchema = z.object({
   type: z.literal('bullet'),
   title: z.string().max(VALIDATION_RULES.bullet.titleMax),
   bullets: z
-    .array(z.string().max(VALIDATION_RULES.bullet.bulletMax))
+    .array(z.string().min(VALIDATION_RULES.bullet.bulletMin).max(VALIDATION_RULES.bullet.bulletMax))
     .min(VALIDATION_RULES.bullet.bulletsMin)
     .max(VALIDATION_RULES.bullet.bulletsMax),
 });

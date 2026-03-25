@@ -16,6 +16,7 @@ export const VALIDATION_RULES = {
     titleMax: 28,
     bulletsMin: 2,
     bulletsMax: 6,
+    bulletMin: 20,
     bulletMax: 220,
   },
   cardMin: 4,

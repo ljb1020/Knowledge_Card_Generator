@@ -115,3 +115,34 @@ export function buildStage1RetryPrompt(
     previousDraft,
   ].join('\n');
 }
+
+/**
+ * 收敛重试 prompt：当底稿只因字数超限被拒时，明确告诉 LLM 当前字数和目标字数，
+ * 要求它在保留全部要点的基础上精简表达。
+ */
+export function buildStage1ConvergencePrompt(
+  topic: string,
+  previousDraft: string,
+  validationError: string
+): string {
+  return [
+    '你上一版底稿质量不错，但部分段落字数超限。',
+    '请基于上一版底稿做精简，严格遵守每段的字数上限，同时保留全部要点和专业信息量。',
+    '精简策略：',
+    '- 追问和易错点每条控制在一句提问/论点 + 一句核心点拨，不要展开太长的解释。',
+    '- 减少重复表述和过渡性虚词。',
+    '- 不要删减条目数量，只压缩每条的篇幅。',
+    '',
+    ...buildTopicLockRules(topic),
+    '',
+    ...buildTutorialRulesBlock(),
+    '',
+    `唯一知识点：${topic}`,
+    '',
+    '上一版的具体超限问题：',
+    validationError,
+    '',
+    '上一版底稿（需要精简）：',
+    previousDraft,
+  ].join('\n');
+}
