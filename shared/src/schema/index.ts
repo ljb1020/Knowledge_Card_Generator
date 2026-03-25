@@ -16,7 +16,8 @@ export const BulletCardSchema = z.object({
   bullets: z
     .array(z.string().min(VALIDATION_RULES.bullet.bulletMin).max(VALIDATION_RULES.bullet.bulletMax))
     .min(VALIDATION_RULES.bullet.bulletsMin)
-    .max(VALIDATION_RULES.bullet.bulletsMax),
+    .max(VALIDATION_RULES.bullet.bulletsMax)
+    .describe('分点解答列表，3-8点'),
 });
 
 export const CardSchema = z.union([CoverCardSchema, BulletCardSchema]);

@@ -11,67 +11,146 @@ export interface RenderItem {
 }
 
 const MAX_BULLETS_PER_PAGE = 3;
-const MAX_USABLE_HEIGHT = 880; // 卡片垂直可用安全高度（扣除 Cover 和 Bento 导航）
-const CHARS_PER_LINE = 27;     // 每行容纳的中文字数 (可用宽 ~800px / 字号 30px)
-const LINE_HEIGHT_PX = 49.5;   // 单行像素高 (30px * 1.65)
-const BULLET_MARGIN_PX = 54;   // 结构性外框占用的垂直间距
+const MAX_USABLE_HEIGHT = 889; // 1440 - 231(顶部标题区) - 320(底部 bento + padding)
 
-/**
- * 计算一段文本放入 DOM 渲染后所需的物理像素高度
- */
-function estimateBulletHeight(text: string, isFollowUp: boolean): number {
-  let height = BULLET_MARGIN_PX;
-  
-  if (isFollowUp && (text.includes('？') || text.includes('?'))) {
-    // 触发了追问卡片的“问答分涂”特效渲染，加上分割间的 10px 惩罚
-    const lines = Math.ceil(text.length / CHARS_PER_LINE);
-    height += lines * LINE_HEIGHT_PX + 10;
-    return height;
+// Container 实际内宽计算（根据 BulletCardView.tsx 布局）：
+// Canvas: 1080 - 72*2 = 936px
+// Bullet 容器: flex gap 20px, left nav(>_ 01) ~50px
+// Bullet Content paddingLeft(24) + paddingRight(22) + borderLeft(2) = 48px
+// content 可用宽度 ≈ 936 - 20 - 50 - 48 = 818px
+const CONTENT_WIDTH_PX = 818;
+const BULLET_PADDING_PX = 26; // paddingTop(12) + paddingBottom(14)
+const BULLET_GAP_PX = 28;     // bullets flex gap
+
+const QUESTION_MARKS = new Set(['？', '?']);
+
+function getQuestionMarkIndexes(text: string): number[] {
+  const indexes: number[] = [];
+  for (let i = 0; i < text.length; i += 1) {
+    if (QUESTION_MARKS.has(text[i])) indexes.push(i);
   }
-
-  const lines = Math.ceil(text.length / CHARS_PER_LINE);
-  height += lines * LINE_HEIGHT_PX;
-  return height;
+  return indexes;
 }
 
-/** 
- * 动态安全拆页：基于物理 DOM 高度确保页面内容不溢出
+function stripAnswerLead(text: string): string {
+  return text.replace(/^(?:\s*(?:——|--|-)\s*)+/, '').trim();
+}
+
+function splitQA(text: string): { question: string; answer: string } | null {
+  const normalized = text.trim();
+  const questionIndexes = getQuestionMarkIndexes(normalized);
+  if (questionIndexes.length === 0) return null;
+
+  const cuePatterns = [ /答题方向[:：]/u, /答[:：]/u, /——/u, /--/u, /\s-\s/u ];
+
+  for (const pattern of cuePatterns) {
+    const match = pattern.exec(normalized);
+    if (!match || match.index <= 0) continue;
+    const questionIndex = [...questionIndexes].reverse().find((idx) => idx < match.index);
+    if (questionIndex === undefined) continue;
+    const question = normalized.slice(0, questionIndex + 1).trim();
+    const answer = stripAnswerLead(normalized.slice(match.index));
+    if (question && answer) return { question, answer };
+  }
+
+  if (questionIndexes.length === 1) {
+    const question = normalized.slice(0, questionIndexes[0] + 1).trim();
+    const answer = normalized.slice(questionIndexes[0] + 1).trim();
+    if (question && answer) return { question, answer };
+  }
+
+  return null;
+}
+
+// 将 Markdown 加粗转化为真正的 HTML 节点（用于离线测距）
+function convertMarkdownToHtml(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map(part => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return `<strong style="font-weight: 600;">${part.slice(2, -2)}</strong>`;
+    }
+    return part; 
+  }).join('');
+}
+
+/**
+ * 原生 DOM 离线渲染测量高度 (100% 精确)
+ */
+function measureDomHeight(bullet: string, isFollowUp: boolean, fontSize: string): number {
+  if (typeof document === 'undefined') {
+    // SSR 回退：按纯字数估算（每行27字，行高1.65）
+    return BULLET_PADDING_PX + Math.ceil(bullet.length / 27) * parseFloat(fontSize) * 1.65;
+  }
+
+  const container = document.createElement('div');
+  container.style.position = 'absolute';
+  container.style.visibility = 'hidden';
+  container.style.pointerEvents = 'none';
+  container.style.width = `${CONTENT_WIDTH_PX}px`;
+  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif';
+  container.style.fontSize = fontSize;
+  container.style.lineHeight = '1.65';
+  
+  const qa = isFollowUp ? splitQA(bullet) : null;
+  if (qa) {
+    container.innerHTML = `
+      <div style="font-weight: 600; margin-bottom: 10px;">${convertMarkdownToHtml(qa.question)}</div>
+      <div>${convertMarkdownToHtml(qa.answer)}</div>
+    `;
+  } else {
+    container.innerHTML = `<span>${convertMarkdownToHtml(bullet.trim())}</span>`;
+  }
+
+  document.body.appendChild(container);
+  const textHeight = container.clientHeight;
+  document.body.removeChild(container);
+
+  return textHeight + BULLET_PADDING_PX;
+}
+
+/**
+ * 动态安全拆页：基于实时计算当前页所有条目的字数并根据动态 fontSize 用 DOM 测算高度
  */
 function paginateBullets(bullets: string[], isFollowUp: boolean): string[][] {
   const pages: string[][] = [];
   let currentPage: string[] = [];
-  let currentHeight = 0;
 
   for (const b of bullets) {
-    const itemHeight = estimateBulletHeight(b, isFollowUp);
+    const testPage = [...currentPage, b];
     
-    // 裂变条件：如果塞入这条会物理撑爆屏幕、或者达到了限制上限
-    if (currentPage.length > 0 && (currentPage.length >= MAX_BULLETS_PER_PAGE || currentHeight + itemHeight > MAX_USABLE_HEIGHT)) {
-      pages.push(currentPage);
-      currentPage = [];
-      currentHeight = 0;
+    // 按 BulletCardView 规则实时计算放进去后的 fontSize
+    const totalTextLength = testPage.reduce((sum, item) => sum + item.length, 0);
+    const fontSize = totalTextLength > 200 ? '30px' : totalTextLength > 120 ? '32px' : '34px';
+
+    // 基于这个 fontSize，测算整页放进去后的所需物理高度
+    let testHeight = 0;
+    for (let i = 0; i < testPage.length; i++) {
+        testHeight += measureDomHeight(testPage[i], isFollowUp, fontSize);
+        if (i > 0) testHeight += BULLET_GAP_PX;
     }
-    
-    currentPage.push(b);
-    currentHeight += itemHeight;
+
+    if (currentPage.length > 0 && (testPage.length > MAX_BULLETS_PER_PAGE || testHeight > MAX_USABLE_HEIGHT)) {
+      // 容纳不下：锁定前一页
+      pages.push(currentPage);
+      currentPage = [b]; // 新页只有当前条目
+    } else {
+      // 能容纳，更新当前页
+      currentPage = testPage;
+    }
   }
-  
+
   if (currentPage.length > 0) {
     pages.push(currentPage);
   }
-  
-  if (pages.length === 0) {
-    pages.push([]);
-  }
 
-  return pages;
+  return pages.length === 0 ? [[]] : pages;
 }
 
 export function expandCards(cards: Card[]): RenderItem[] {
   // 先预计算所有卡的物理页数
   const cardPages = cards.map((card, sectionIndex) => {
     if (card.type === 'cover') return { card, pages: [[]] as string[][], sectionIndex };
-    
+
     const bullets = (card as BulletCard).bullets;
     const isFollowUp = card.title === '高频追问';
     const pages = paginateBullets(bullets, isFollowUp);

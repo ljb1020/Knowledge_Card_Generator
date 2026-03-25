@@ -202,20 +202,20 @@ function formatZodIssue(issue: ZodError['issues'][number]): string {
 
   if (issue.code === ZodIssueCode.too_small) {
     if (issue.type === 'array') {
-      return `${target} 数量不能少于 ${issue.minimum}`;
+      return `${target} 条目数量只有不足的错误状态（最少需要 ${issue.minimum} 条）。请补充更多维度的解答点！`;
     }
     if (issue.type === 'string') {
-      return `${target} 长度不能少于 ${issue.minimum}`;
+      return `${target} 字数太少（下限 ${issue.minimum} 字）。请丰富细节和深度原理！`;
     }
     return `${target} 不能小于 ${issue.minimum}`;
   }
 
   if (issue.code === ZodIssueCode.too_big) {
     if (issue.type === 'array') {
-      return `${target} 数量不能超过 ${issue.maximum}`;
+      return `${target} 条目数量超限（最多允许 ${issue.maximum} 条）。请合并或删除次要条目！`;
     }
     if (issue.type === 'string') {
-      return `${target} 长度不能超过 ${issue.maximum}`;
+      return `${target} 字数严重超限（上限 ${issue.maximum} 字）。请大幅删减废话，提取核心主干重新输出！`;
     }
     return `${target} 不能超过 ${issue.maximum}`;
   }
